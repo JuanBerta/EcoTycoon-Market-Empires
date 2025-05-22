@@ -267,6 +267,7 @@ export interface MejoraCalidad extends EstrategiaCompetitiva {
   impactoEnPrecio: number;                 // Impacto en precio (%)
   impactoEnCostos: number;                 // Impacto en costos (%)
   percepcionConsumidores: number;          // Percepción de consumidores (0-100)
+  feedbackConsumidores: string[];          // Feedback directo de los consumidores
 }
 
 /** Representa una estrategia de diversificación */
@@ -296,5 +297,6 @@ export interface Diversificacion extends EstrategiaCompetitiva {
 export interface AnalisisCompetitivo {
   id: string;                              // Identificador único
   mercadoId: string;                       // ID del mercado analizado
-  fechaAnalisis: number
+  fechaAnalisis: number;                   // Día de juego del análisis
+  riesgoCalculado: number;                 // Riesgo calculado
 (Content truncated due to size limit. Use line ranges to read in chunks)

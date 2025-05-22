@@ -373,25 +373,39 @@ export class GestorAlianzas {
   ): void {
     // Para cada condición, simular cambios en el cumplimiento
     for (const condicion of alianza.condiciones) {
-      // Probabilidad base de cambio en cumplimiento
-      const probabilidadCambio = 0.1 * diasTranscurridos;
-      
-      if (Math.random() < probabilidadCambio) {
-        // Determinar si mejora o empeora
-        const cambio = Math.random() < 0.7 ? 5 : -10; // Más probable mejorar que empeorar
+      if (condicion.descripcion === "condicion_especial") { // Check for the special condition
+        if (alianza.nivelConfianza > 90) {
+          condicion.cumplimiento = 100;
+        } else {
+          condicion.cumplimiento = 0;
+        }
+        // Optionally, log an event for this specific update if desired
+        // alianza.historialEventos.push({
+        //   fecha: Date.now(),
+        //   descripcion: `Actualización de 'condicion_especial', cumplimiento: ${condicion.cumplimiento}`,
+        //   impacto: 0 // Or some relevant impact
+        // });
+      } else { // For all other conditions, apply the existing logic
+        // Probabilidad base de cambio en cumplimiento
+        const probabilidadCambio = 0.1 * diasTranscurridos;
         
-        // Aplicar cambio
-        condicion.cumplimiento = Math.max(0, Math.min(100, condicion.cumplimiento + cambio));
-        
-        // Si el cambio es significativo, registrar evento
-        if (Math.abs(cambio) >= 10) {
-          alianza.historialEventos.push({
-            fecha: Date.now(),
-            descripcion: cambio > 0 
-              ? `Mejora en cumplimiento de condición: ${condicion.descripcion}`
-              : `Deterioro en cumplimiento de condición: ${condicion.descripcion}`,
-            impacto: cambio / 2 // Impacto proporcional al cambio
-          });
+        if (Math.random() < probabilidadCambio) {
+          // Determinar si mejora o empeora
+          const cambio = Math.random() < 0.7 ? 5 : -10; // Más probable mejorar que empeorar
+          
+          // Aplicar cambio
+          condicion.cumplimiento = Math.max(0, Math.min(100, condicion.cumplimiento + cambio));
+          
+          // Si el cambio es significativo, registrar evento
+          if (Math.abs(cambio) >= 10) {
+            alianza.historialEventos.push({
+              fecha: Date.now(),
+              descripcion: cambio > 0 
+                ? `Mejora en cumplimiento de condición: ${condicion.descripcion}`
+                : `Deterioro en cumplimiento de condición: ${condicion.descripcion}`,
+              impacto: cambio / 2 // Impacto proporcional al cambio
+            });
+          }
         }
       }
     }

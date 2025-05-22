@@ -483,5 +483,274 @@ export class GestorEstrategias {
       certificacionesObtenidas: [],
       impactoEnPrecio: detalles.impactoEnPrecio,
       impactoEnCostos: detalles.impactoEnCostos,
-      percepcionConsumid
-(Content truncated due to size limit. Use line ranges to read in chunks)
+      percepcionConsumidores: 0, // Inicializar percepción de consumidores
+      feedbackConsumidores: []   // Inicializar feedback de consumidores
+    };
+
+    mejoraCalidad.efectosEsperados = [
+      {
+        tipo: "mejora_calidad_producto",
+        descripcion: `Aumento de la calidad percibida del producto en un ${detalles.aumentoCalidadEsperado}%`,
+        valorEstimado: detalles.aumentoCalidadEsperado
+      },
+      {
+        tipo: "aumento_precio_venta",
+        descripcion: `Posibilidad de aumentar el precio de venta en un ${detalles.impactoEnPrecio}%`,
+        valorEstimado: detalles.impactoEnPrecio
+      },
+      {
+        tipo: "obtencion_certificaciones",
+        descripcion: `Obtención de certificaciones de calidad: ${detalles.certificacionesObjetivo.join(', ')}`,
+        valorEstimado: detalles.certificacionesObjetivo.length
+      }
+    ];
+
+    mejoraCalidad.riesgosIdentificados = [
+      {
+        descripcion: "Costos de mejora de calidad superan beneficios",
+        probabilidad: 40,
+        impacto: 7,
+        materializado: false
+      },
+      {
+        descripcion: "Consumidores no perciben o valoran la mejora de calidad",
+        probabilidad: 30,
+        impacto: 6,
+        materializado: false
+      },
+      {
+        descripcion: "Dificultad para mantener consistentemente el nuevo nivel de calidad",
+        probabilidad: 50,
+        impacto: 7,
+        materializado: false
+      }
+    ];
+
+    return mejoraCalidad;
+  }
+
+  private iniciarDiversificacion(
+    estrategia: EstrategiaCompetitiva,
+    detalles: {
+      nuevosProductos: { nombre: string; categoria: string; inversionDesarrollo: number; tiempoDesarrollo: number }[];
+      nuevosSegmentos: string[];
+      adquisicionesPlanificadas: string[];
+    }
+  ): Diversificacion {
+    const diversificacion: Diversificacion = {
+      ...estrategia,
+      tipo: TipoEstrategiaCompetitiva.DIVERSIFICACION,
+      nuevosProductos: detalles.nuevosProductos.map(p => ({ ...p, progreso: 0, lanzado: false })),
+      nuevosSegmentos: detalles.nuevosSegmentos,
+      adquisicionesPlanificadas: detalles.adquisicionesPlanificadas,
+      adquisicionesCompletadas: [],
+      sinergiasPotenciales: 0, // Se calculará en base a adquisiciones y nuevos productos
+      riesgosDiversificacion: [] // Se añadirán riesgos específicos
+    };
+
+    diversificacion.efectosEsperados = [
+      {
+        tipo: "entrada_nuevos_mercados",
+        descripcion: `Entrada en ${detalles.nuevosProductos.length} nuevos mercados de productos y ${detalles.nuevosSegmentos.length} nuevos segmentos`,
+        valorEstimado: detalles.nuevosProductos.length + detalles.nuevosSegmentos.length
+      },
+      {
+        tipo: "reduccion_riesgo_dependencia",
+        descripcion: `Reducción del riesgo por dependencia de un solo mercado/producto`,
+        valorEstimado: 1 // Representa la reducción del riesgo
+      },
+      {
+        tipo: "aumento_ingresos_totales",
+        descripcion: `Aumento potencial de ingresos totales`,
+        valorEstimado: 20 // 20% de aumento estimado
+      }
+    ];
+
+    diversificacion.riesgosIdentificados = [
+      {
+        descripcion: "Falta de experiencia en nuevos mercados o con nuevos productos",
+        probabilidad: 60,
+        impacto: 8,
+        materializado: false
+      },
+      {
+        descripcion: "Dilución de la marca principal o identidad corporativa",
+        probabilidad: 40,
+        impacto: 6,
+        materializado: false
+      },
+      {
+        descripcion: "Dificultades en la integración de empresas adquiridas",
+        probabilidad: 50,
+        impacto: 7,
+        materializado: false
+      }
+    ];
+    
+    // Añadir riesgos específicos por cada nuevo producto
+    detalles.nuevosProductos.forEach(p => {
+        diversificacion.riesgosIdentificados.push({
+            descripcion: `Fracaso en el desarrollo o lanzamiento del nuevo producto: ${p.nombre}`,
+            probabilidad: 30, // Probabilidad moderada por producto
+            impacto: 7,
+            materializado: false
+        });
+    });
+
+    return diversificacion;
+  }
+  
+  /**
+   * Actualiza el progreso y estado de una estrategia
+   * @param estrategiaId ID de la estrategia
+   * @param diasTranscurridos Días transcurridos desde la última actualización
+   * @returns La estrategia actualizada
+   */
+  public actualizarEstrategia(
+    estrategiaId: string,
+    diasTranscurridos: number = 1
+  ): EstrategiaCompetitiva {
+    const estrategia = this.obtenerEstrategia(estrategiaId);
+    if (!estrategia || estrategia.estado === EstadoEstrategia.FINALIZADA || estrategia.estado === EstadoEstrategia.CANCELADA) {
+      return estrategia;
+    }
+    
+    const fechaActual = Date.now();
+    
+    // Actualizar costo acumulado (simplificado)
+    estrategia.costoAcumulado += (estrategia.inversion / estrategia.duracionPlanificada) * diasTranscurridos;
+    
+    // Actualizar progreso
+    const progresoIncremento = (100 / estrategia.duracionPlanificada) * diasTranscurridos;
+    estrategia.progreso = Math.min(100, estrategia.progreso + progresoIncremento);
+    
+    // Simular efectos reales (simplificado, debería ser más complejo)
+    estrategia.efectosReales = estrategia.efectosEsperados.map(efecto => ({
+      ...efecto,
+      valorRealizado: efecto.valorEstimado * (estrategia.progreso / 100) * (Math.random() * 0.5 + 0.75) // 75%-125% de lo esperado
+    }));
+    
+    // Simular materialización de riesgos (simplificado)
+    estrategia.riesgosIdentificados.forEach(riesgo => {
+      if (!riesgo.materializado && Math.random() < (riesgo.probabilidad / 100) * (diasTranscurridos / estrategia.duracionPlanificada)) {
+        riesgo.materializado = true;
+        estrategia.informesProgreso.push({
+          fecha: fechaActual,
+          progreso: estrategia.progreso,
+          logros: [],
+          problemas: [`Riesgo materializado: ${riesgo.descripcion}`]
+        });
+      }
+    });
+    
+    // Actualizar estado si se completa
+    if (estrategia.progreso >= 100) {
+      estrategia.estado = EstadoEstrategia.FINALIZADA;
+      estrategia.duracionReal = (fechaActual - estrategia.fechaInicio) / (1000 * 60 * 60 * 24); // Duración en días
+      estrategia.informesProgreso.push({
+        fecha: fechaActual,
+        progreso: 100,
+        logros: ["Estrategia completada"],
+        problemas: []
+      });
+    }
+    
+    this.estrategias.set(estrategiaId, estrategia);
+    return estrategia;
+  }
+  
+  /**
+   * Responde a una estrategia de un competidor
+   * @param estrategiaId ID de la estrategia a la que se responde
+   * @param empresaRespondiente ID de la empresa que responde
+   * @param tipoRespuesta Tipo de respuesta
+   * @param descripcion Descripción de la respuesta
+   * @param efectividad Efectividad estimada de la respuesta
+   * @param estrategiaContraataqueId (Opcional) ID de la estrategia de contraataque
+   */
+  public responderAEstrategia(
+    estrategiaId: string,
+    empresaRespondiente: string,
+    tipoRespuesta: TipoRespuestaCompetitiva,
+    descripcion: string,
+    efectividad: number, // 0-100
+    estrategiaContraataqueId?: string
+  ): void {
+    const estrategia = this.obtenerEstrategia(estrategiaId);
+    if (!estrategia) {
+      throw new Error(`Estrategia no encontrada: ${estrategiaId}`);
+    }
+    
+    if (!estrategia.empresasObjetivo.includes(empresaRespondiente) && estrategia.empresaEjecutora !== empresaRespondiente) {
+        // Permitir que cualquier empresa responda si no es la ejecutora, 
+        // ya que las estrategias pueden tener impacto en todo el mercado.
+    }
+
+    estrategia.respuestasCompetidores.push({
+      empresaId: empresaRespondiente,
+      tipoRespuesta,
+      descripcion,
+      efectividad,
+      estrategiaContraataqueId
+    });
+    
+    // Lógica para ajustar efectividad de la estrategia original basada en la respuesta
+    // Por ejemplo, una respuesta efectiva podría reducir el progreso o los efectos de la estrategia.
+    // Esta es una simplificación:
+    const impactoRespuesta = efectividad / 100; // Convertir a factor
+    estrategia.efectosEsperados.forEach(efecto => {
+        efecto.valorEstimado *= (1 - (impactoRespuesta * 0.25)); // Reducir efecto esperado hasta un 25%
+    });
+
+    // Si la respuesta es un contraataque, se podría vincular aquí
+    if (tipoRespuesta === TipoRespuestaCompetitiva.CONTRAATACAR && estrategiaContraataqueId) {
+        // Lógica adicional si es necesario
+        console.log(`Empresa ${empresaRespondiente} contraataca estrategia ${estrategiaId} con ${estrategiaContraataqueId}`);
+    }
+
+    this.estrategias.set(estrategiaId, estrategia);
+  }
+  
+  /**
+   * Obtiene una estrategia por su ID
+   * @param estrategiaId ID de la estrategia
+   * @returns La estrategia o undefined si no se encuentra
+   */
+  public obtenerEstrategia(estrategiaId: string): EstrategiaCompetitiva | undefined {
+    return this.estrategias.get(estrategiaId);
+  }
+
+  /**
+   * Obtiene todas las estrategias activas de una empresa
+   * @param empresaId ID de la empresa
+   * @returns Lista de estrategias activas
+   */
+  public obtenerEstrategiasActivasPorEmpresa(empresaId: string): EstrategiaCompetitiva[] {
+    return Array.from(this.estrategias.values()).filter(
+      e => e.empresaEjecutora === empresaId && 
+           (e.estado === EstadoEstrategia.INICIADA || e.estado === EstadoEstrategia.EN_PROGRESO)
+    );
+  }
+
+  /**
+   * Obtiene todas las estrategias (activas o no) de una empresa
+   * @param empresaId ID de la empresa
+   * @returns Lista de todas las estrategias de la empresa
+   */
+  public obtenerTodasEstrategiasPorEmpresa(empresaId: string): EstrategiaCompetitiva[] {
+    return Array.from(this.estrategias.values()).filter(e => e.empresaEjecutora === empresaId);
+  }
+
+   /**
+   * Obtiene todas las estrategias que tienen a una empresa como objetivo
+   * @param empresaId ID de la empresa objetivo
+   * @returns Lista de estrategias dirigidas a la empresa
+   */
+  public obtenerEstrategiasDirigidasAEmpresa(empresaId: string): EstrategiaCompetitiva[] {
+    return Array.from(this.estrategias.values()).filter(
+        e => e.empresasObjetivo.includes(empresaId) &&
+             (e.estado === EstadoEstrategia.INICIADA || e.estado === EstadoEstrategia.EN_PROGRESO)
+    );
+  }
+}
+// Asegurar que haya una línea nueva al final del archivo.
