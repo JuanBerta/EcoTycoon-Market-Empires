@@ -1,0 +1,107 @@
+/* Estilos para el Footer */
+.game-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #0d47a1;
+  color: white;
+  padding: 0 20px;
+  height: 50px;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.time-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.speed-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.speed-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.speed-button.active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.system-messages {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 20px;
+}
+
+.message {
+  display: inline-block;
+  animation: slide-in 0.3s ease;
+}
+
+.message.default {
+  opacity: 0.7;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+}
+
+.save-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.save-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Estilos responsivos */
+@media (max-width: 768px) {
+  .game-footer {
+    padding: 0 10px;
+  }
+  
+  .system-messages {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  
+  .save-button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}

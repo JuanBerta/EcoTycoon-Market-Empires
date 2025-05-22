@@ -1,0 +1,145 @@
+/* Estilos para el Header */
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #1a73e8;
+  color: white;
+  padding: 0 20px;
+  height: 60px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-logo h1 {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.game-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.time-label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.time-value {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.player-money {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.notifications-container {
+  position: relative;
+}
+
+.notifications-button, .settings-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.notifications-button:hover, .settings-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #ea4335;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notifications-dropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  width: 300px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 1000;
+  color: #333;
+}
+
+.notifications-dropdown h3 {
+  margin: 0;
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+  font-size: 16px;
+}
+
+.notifications-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notification-item {
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.notification-item.info {
+  border-left: 4px solid #1a73e8;
+}
+
+.notification-item.warning {
+  border-left: 4px solid #fbbc05;
+}
+
+.notification-item.alert {
+  border-left: 4px solid #ea4335;
+}
+
+/* Estilos responsivos */
+@media (max-width: 768px) {
+  .game-time {
+    display: none;
+  }
+  
+  .header-logo h1 {
+    font-size: 20px;
+  }
+}
