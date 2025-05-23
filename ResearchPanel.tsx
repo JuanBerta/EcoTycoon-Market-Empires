@@ -497,12 +497,16 @@ const ResearchPanel: React.FC<ResearchPanelProps> = ({
           title="Proyectos Activos" 
           className="active-projects-card"
           loading={loading}
-          actions={
-            <button className="action-button small">
+          actions={[
+            <button key="newProject" className="action-button small">
               <span className="icon">➕</span>
               Nuevo Proyecto
+            </button>,
+            <button key="relatedTech" className="action-button small" onClick={() => console.log('View related technologies clicked')}>
+              <span className="icon">🔗</span>
+              Ver Tecnologías Relacionadas
             </button>
-          }
+          ]}
         >
           <Table 
             columns={projectColumns}
@@ -519,5 +523,53 @@ const ResearchPanel: React.FC<ResearchPanelProps> = ({
                 label: 'Detalles',
                 icon: '🔍',
                 onClick: (row) => console.log('Ver detalles de proyecto', row),
+              }
+            ]}
+            onRowClick={handleProjectClick}
+          />
+        </Card>
         
-(Content truncated due to size limit. Use line ranges to read in chunks)
+        <Card 
+          title="Prototipos de Productos" 
+          className="product-prototypes-card"
+          loading={loading}
+        >
+          <VirtualizedList
+            items={mockData.productPrototypes}
+            height={300} // Altura del contenedor de la lista
+            itemHeight={85} // Altura de cada elemento de la lista
+            renderItem={(item: any) => ( // Added type for item
+              <div key={item.id} className="prototype-item" style={item.style} onClick={() => handlePrototypeClick(item)}>
+                <div className="prototype-icon">🧪</div>
+                <div className="prototype-info">
+                  <div className="prototype-name">{item.name}</div>
+                  <div className="prototype-category">{item.category}</div>
+                  <div className="prototype-status">{item.status}</div>
+                </div>
+                <div className="prototype-metrics">
+                  <div className="metric">Potencial: <span>{item.marketPotential}%</span></div>
+                  <div className="metric">Costo: <span>${item.developmentCost.toLocaleString()}</span></div>
+                </div>
+              </div>
+            )}
+          />
+        </Card>
+        
+        <Card 
+          title="Innovación Competitiva" 
+          className="competitor-innovation-card"
+          loading={loading}
+        >
+          <Chart 
+            type="radar" 
+            data={mockData.competitorInnovation} 
+            height={300}
+          />
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default optimizeComponent(ResearchPanel);
+// Asegurar que haya una línea nueva al final del archivo.

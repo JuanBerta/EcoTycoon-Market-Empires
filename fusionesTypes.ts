@@ -127,6 +127,7 @@ export interface OfertaTransaccion {
     condiciones: string[];
     aceptada: boolean;
   }[];
+  sinergiasAdicionales?: string[];
 }
 
 /**

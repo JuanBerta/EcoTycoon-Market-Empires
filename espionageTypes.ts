@@ -67,6 +67,7 @@ export interface MisionEspionaje {
   costoOperacion: number;       // Costo monetario de la misión
   probabilidadExitoBase: number; // Probabilidad inicial de éxito (0-100)
   probabilidadDeteccionBase: number; // Probabilidad inicial de detección (0-100)
+  riesgoEstimado?: number;      // Riesgo estimado de la misión (0-100)
   estado: EstadoMision;         // Estado actual de la misión
   resultado?: ResultadoMision; // Detalles del desenlace si está completada
 }
@@ -87,6 +88,7 @@ export interface ResultadoMision {
     cambioNotoriedad?: number;
     tiempoRecuperacion?: number;
   };
+  consecuenciasEmpresa?: { reputacion?: number; alertaMaxima?: boolean; [key: string]: any };
 }
 
 /** Representa un efecto aplicado como resultado de una misión o consecuencia */

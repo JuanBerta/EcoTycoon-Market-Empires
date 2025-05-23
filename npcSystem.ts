@@ -146,12 +146,12 @@ export const generateNPCDecisions = (
       // Ajustar por estrategia de la compañía
       if (company.strategy === 'low_cost' && product.price > 50) {
         // Menos interesado en productos caros
-        continue;
+        return; 
       }
       
       if (company.strategy === 'high_quality' && product.price < 30) {
         // Menos interesado en productos baratos
-        continue;
+        return; 
       }
       
       // Crear decisión de producción
@@ -176,7 +176,7 @@ export const generateNPCDecisions = (
   // Evaluar oportunidades de expansión
   if (company.buildings.length < 3 && company.cash > 50000) {
     // Buscar la mejor ciudad para expandirse
-    let bestCity = null;
+    let bestCity: any = null; // Use 'any' or a proper City type if available
     let bestScore = 0;
     
     regions.forEach(region => {
@@ -196,9 +196,9 @@ export const generateNPCDecisions = (
         // Ajustar por costos
         const costFactor = (city.landCost + city.laborCost) / 1000;
         if (company.strategy === 'low_cost') {
-          score /= costFactor; // Muy sensible a costos
+          score /= Math.max(0.1, costFactor); 
         } else {
-          score /= Math.sqrt(costFactor); // Menos sensible a costos
+          score /= Math.max(0.1, Math.sqrt(costFactor)); 
         }
         
         if (score > bestScore) {
@@ -232,7 +232,7 @@ export const generateNPCDecisions = (
         type: 'build',
         priority,
         parameters: {
-          cityId: bestCity.id,
+          cityId: bestCity.id, 
           buildingType,
           size: company.strategy === 'high_quality' ? 15 : 10
         },
@@ -248,21 +248,16 @@ export const generateNPCDecisions = (
   Object.values(marketData.resources).forEach(resource => {
     // Verificar si el recurso es necesario para productos preferidos
     const isNeeded = company.preferredProducts.some(productId => {
-      // Lógica simplificada: asumimos que cada recurso es necesario para al menos un producto preferido
-      return true;
+      return true; // Simplified logic
     });
     
     if (isNeeded && resource.price < 20 && resource.availability > 50) {
-      // Buena oportunidad para comprar recursos baratos y abundantes
-      
-      // Calcular cantidad a comprar basada en disponibilidad y estrategia
       let quantity = Math.floor(resource.availability / 10);
       if (company.strategy === 'low_cost') {
-        quantity *= 1.5; // Compra más para aprovechar precios bajos
+        quantity *= 1.5; 
       }
       
-      // Limitar por efectivo disponible
-      const maxAffordable = Math.floor(company.cash * 0.2 / resource.price);
+      const maxAffordable = Math.floor(company.cash * 0.2 / Math.max(1, resource.price));
       quantity = Math.min(quantity, maxAffordable);
       
       if (quantity > 0) {
@@ -274,11 +269,11 @@ export const generateNPCDecisions = (
           parameters: {
             resourceId: resource.id,
             quantity,
-            maxPrice: resource.price * 1.1 // Acepta hasta 10% más del precio actual
+            maxPrice: resource.price * 1.1 
           },
-          expectedProfit: quantity * resource.price * 0.2, // Estimación simple
-          risk: 30, // Riesgo bajo-moderado
-          timeToExecute: currentTime + Math.random() * 12 * 60 * 60 * 1000, // Entre ahora y 12h
+          expectedProfit: quantity * resource.price * 0.2, 
+          risk: 30, 
+          timeToExecute: currentTime + Math.random() * 12 * 60 * 60 * 1000, 
           executed: false
         });
       }
@@ -290,35 +285,27 @@ export const generateNPCDecisions = (
     const product = marketData.products[productId];
     if (!product) return;
     
-    // Determinar dirección de cambio de precio según estrategia y condiciones de mercado
     let priceChange = 0;
-    
     if (company.strategy === 'low_cost') {
-      // Estrategia de bajo costo: mantener precios bajos
       priceChange = -5;
     } else if (company.strategy === 'high_quality') {
-      // Estrategia de alta calidad: precios premium
       priceChange = 10;
     } else {
-      // Estrategia de nicho: adaptarse al mercado
       if (product.demand > product.supply) {
-        priceChange = 5; // Subir precios si hay más demanda que oferta
+        priceChange = 5; 
       } else {
-        priceChange = -3; // Bajar precios si hay más oferta que demanda
+        priceChange = -3; 
       }
     }
     
-    // Ajustar por tendencia del mercado
     if (product.trend === 'rising') {
       priceChange += 3;
     } else if (product.trend === 'falling') {
       priceChange -= 3;
     }
     
-    // Calcular nuevo precio
     const newPrice = Math.max(product.price * 0.7, product.price + priceChange);
     
-    // Solo crear decisión si el cambio es significativo
     if (Math.abs(newPrice - product.price) > 2) {
       decisions.push({
         id: `decision-${uuidv4()}`,
@@ -329,23 +316,20 @@ export const generateNPCDecisions = (
           productId,
           newPrice
         },
-        expectedProfit: Math.abs(newPrice - product.price) * 10, // Estimación simple
+        expectedProfit: Math.abs(newPrice - product.price) * 10, 
         risk: 40,
-        timeToExecute: currentTime + Math.random() * 6 * 60 * 60 * 1000, // Entre ahora y 6h
+        timeToExecute: currentTime + Math.random() * 6 * 60 * 60 * 1000, 
         executed: false
       });
     }
   });
   
-  // Filtrar decisiones basadas en tolerancia al riesgo
   const filteredDecisions = decisions.filter(decision => 
-    decision.risk <= company.riskTolerance + 20 // Permite algo más de riesgo del nivel base
+    decision.risk <= company.riskTolerance + 20 
   );
   
-  // Ordenar por prioridad
   filteredDecisions.sort((a, b) => b.priority - a.priority);
   
-  // Limitar número de decisiones según agresividad
   const maxDecisions = Math.max(1, Math.floor(company.aggressiveness / 20));
   
   return filteredDecisions.slice(0, maxDecisions);
@@ -361,117 +345,69 @@ export const generateNPCDecisions = (
 export const executeNPCDecision = (
   decision: NPCDecision,
   company: NPCCompany,
-  gameState: any // Tipo simplificado para el MVP
+  gameState: any 
 ): {
   success: boolean;
   effects: Record<string, any>;
   message: string;
 } => {
-  // Implementación simplificada para el MVP
-  // En una implementación completa, esto interactuaría con todos los sistemas del juego
-  
   if (decision.type === 'build') {
-    // Simular construcción de edificio
     const buildingCost = decision.parameters.size * 5000;
-    
     if (company.cash < buildingCost) {
-      return {
-        success: false,
-        effects: {},
-        message: `${company.name} no tiene suficiente dinero para construir.`
-      };
+      return { success: false, effects: {}, message: `${company.name} no tiene suficiente dinero para construir.` };
     }
-    
-    // Generar ID de edificio
     const buildingId = `building-${uuidv4()}`;
-    
     return {
       success: true,
       effects: {
         cashChange: -buildingCost,
-        newBuilding: {
-          id: buildingId,
-          type: decision.parameters.buildingType,
-          cityId: decision.parameters.cityId,
-          size: decision.parameters.size
-        }
+        newBuilding: { id: buildingId, type: decision.parameters.buildingType, cityId: decision.parameters.cityId, size: decision.parameters.size }
       },
       message: `${company.name} ha construido un nuevo ${decision.parameters.buildingType} en la ciudad.`
     };
   }
   
   if (decision.type === 'produce') {
-    // Simular producción
     const productionCost = decision.parameters.quantity * 100;
-    
     if (company.cash < productionCost) {
-      return {
-        success: false,
-        effects: {},
-        message: `${company.name} no tiene suficiente dinero para producir.`
-      };
+      return { success: false, effects: {}, message: `${company.name} no tiene suficiente dinero para producir.` };
     }
-    
     return {
       success: true,
       effects: {
         cashChange: -productionCost,
-        production: {
-          productId: decision.parameters.productId,
-          quantity: decision.parameters.quantity,
-          quality: decision.parameters.targetQuality
-        }
+        production: { productId: decision.parameters.productId, quantity: decision.parameters.quantity, quality: decision.parameters.targetQuality }
       },
       message: `${company.name} ha iniciado la producción de ${decision.parameters.quantity} unidades de producto.`
     };
   }
   
   if (decision.type === 'buy') {
-    // Simular compra de recursos
     const totalCost = decision.parameters.quantity * decision.parameters.maxPrice;
-    
     if (company.cash < totalCost) {
-      return {
-        success: false,
-        effects: {},
-        message: `${company.name} no tiene suficiente dinero para comprar recursos.`
-      };
+      return { success: false, effects: {}, message: `${company.name} no tiene suficiente dinero para comprar recursos.` };
     }
-    
     return {
       success: true,
       effects: {
         cashChange: -totalCost,
-        resourcePurchase: {
-          resourceId: decision.parameters.resourceId,
-          quantity: decision.parameters.quantity,
-          price: decision.parameters.maxPrice
-        }
+        resourcePurchase: { resourceId: decision.parameters.resourceId, quantity: decision.parameters.quantity, price: decision.parameters.maxPrice }
       },
       message: `${company.name} ha comprado ${decision.parameters.quantity} unidades de recurso.`
     };
   }
   
   if (decision.type === 'price_change') {
-    // Simular cambio de precio
     return {
       success: true,
       effects: {
-        priceChange: {
-          productId: decision.parameters.productId,
-          newPrice: decision.parameters.newPrice
-        }
+        priceChange: { productId: decision.parameters.productId, newPrice: decision.parameters.newPrice }
       },
       message: `${company.name} ha cambiado el precio de su producto a ${decision.parameters.newPrice}.`
     };
   }
   
-  // Tipo de decisión no implementado
-  return {
-    success: false,
-    effects: {},
-    message: `${company.name} intentó una acción no implementada.`
-  };
+  return { success: false, effects: {}, message: `${company.name} intentó una acción no implementada.` };
 };
 
 /**
@@ -487,21 +423,34 @@ export const updateNPCCompany = (
     decision: NPCDecision;
     result: {
       success: boolean;
-      effects: Record<string, any>;
+      effects: Record<string, any>; 
     };
   }>,
   currentTime: number
 ): NPCCompany => {
   let updatedCompany = { ...company };
   
-  // Actualizar efectivo
   executionResults.forEach(({ result }) => {
-    if (result.success && result.effects.cashChange) {
-      updatedCompany.cash += result.effects.cashChange;
+    if (result.success) {
+      // Actualizar efectivo
+      if (result.effects.cashChange) {
+        updatedCompany.cash += result.effects.cashChange;
+      }
+      
+      // Actualizar reputación
+      if (result.effects.reputationChange) {
+        updatedCompany.reputation += result.effects.reputationChange;
+        updatedCompany.reputation = Math.max(0, Math.min(100, updatedCompany.reputation)); // Cap reputation
+      }
+      
+      // Actualizar edificios
+      if (result.effects.newBuilding && result.effects.newBuilding.id) { 
+        updatedCompany.buildings.push(result.effects.newBuilding.id);
+      }
     }
   });
   
-  // Actualizar edificios
-  executionResults.forEach(({ result }) => {
-    if (result.suc
-(Content truncated due to size limit. Use line ranges to read in chunks)
+  updatedCompany.lastDecisionTime = currentTime;
+  
+  return updatedCompany;
+};

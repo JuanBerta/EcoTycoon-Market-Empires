@@ -188,9 +188,9 @@ export class GestorMisiones {
       detectado,
       fechaFinalizacion: diaActual,
       consecuenciasAgente: {
-        nuevoEstado: EstadoAgente.DISPONIBLE,
-        cambioExperiencia: exito ? 10 : 5,
-        cambioNotoriedad: detectado ? 15 : 0
+        nuevoEstado: EstadoAgente.DISPONIBLE, // Default, will be overridden
+        cambioExperiencia: exito ? 10 : 5, // Base experience
+        cambioNotoriedad: detectado ? 15 : 0 // Base notoriety
       }
     };
     
@@ -210,16 +210,22 @@ export class GestorMisiones {
         break;
     }
     
-    // Procesar consecuencias de detección
-    if (detectado) {
+    // Procesar consecuencias generales de detección (si no fueron manejadas específicamente)
+    if (detectado && !resultado.consecuenciasJugador) { // Check if not already set by specific processors
       this.procesarConsecuenciasDeteccion(resultado, mision, empresaObjetivo);
     }
     
     // Actualizar estado de la misión
-    mision.estado = detectado ? EstadoMision.DESCUBIERTA : EstadoMision.COMPLETADA;
-    if (!exito) {
-      mision.estado = EstadoMision.FALLIDA;
+    if (detectado && resultado.consecuenciasAgente.nuevoEstado === EstadoAgente.CAPTURADO) {
+        mision.estado = EstadoMision.DESCUBIERTA; // More specific if captured
+    } else if (detectado) {
+        mision.estado = EstadoMision.DESCUBIERTA;
+    } else if (exito) {
+        mision.estado = EstadoMision.COMPLETADA;
+    } else {
+        mision.estado = EstadoMision.FALLIDA;
     }
+    
     mision.resultado = resultado;
     mision.duracionReal = diaActual - mision.fechaInicio;
     
@@ -287,7 +293,7 @@ export class GestorMisiones {
     let complejidadBase = 1.0;
     
     // Ajustar según tamaño de empresa
-    const factorTamano = empresa.tamano / 10; // Asumiendo escala 1-10
+    const factorTamano = (empresa.tamano || 5) / 10; // Asumiendo escala 1-10, default 5
     
     // Ajustar según objetivo específico
     let factorObjetivo = 1.0;
@@ -379,7 +385,7 @@ export class GestorMisiones {
     }
     
     // Ajustar según experiencia
-    probFinal += Math.min(10, agente.experiencia / 10); // Hasta +10% por experiencia
+    probFinal += Math.min(10, (agente.experiencia || 0) / 10); // Hasta +10% por experiencia
     
     // Limitar rango
     return Math.max(5, Math.min(95, probFinal));
@@ -393,7 +399,7 @@ export class GestorMisiones {
     let probFinal = mision.probabilidadDeteccionBase;
     
     // Ajustar según notoriedad del agente
-    probFinal += agente.notoriedad / 5; // Hasta +20% por notoriedad máxima
+    probFinal += (agente.notoriedad || 0) / 5; // Hasta +20% por notoriedad máxima
     
     // Reducción por habilidad
     probFinal -= (agente.nivelHabilidad - 3) * 5; // +/-5% por nivel respecto a 3
@@ -405,7 +411,7 @@ export class GestorMisiones {
     
     // Ajustar según eficiencia de detección del objetivo
     if (empresa.contraespionaje) {
-      probFinal += empresa.contraespionaje.eficienciaDeteccionCalculada / 5; // Hasta +20%
+      probFinal += (empresa.contraespionaje.eficienciaDeteccionCalculada || 0) / 5; // Hasta +20%
     }
     
     // Limitar rango
@@ -484,7 +490,7 @@ export class GestorMisiones {
     mision: MisionEspionaje,
     exito: boolean,
     detectado: boolean,
-    empresa: any
+    empresa: any // Este 'empresa' es la empresa objetivo del sabotaje
   ): void {
     if (exito) {
       // Generar efectos de sabotaje según objetivo
@@ -492,10 +498,201 @@ export class GestorMisiones {
       
       // Aplicar efectos al objetivo
       this.aplicarEfectos(resultado.impactoSabotaje, empresa);
+
+      // Consecuencias para el agente si fue detectado AUN SIENDO EXITOSO
+      if (detectado) {
+        const probabilidadCapturaExitoDetectado = 30; // Menor probabilidad si tuvo éxito pero fue detectado
+        if (Math.random() * 100 < probabilidadCapturaExitoDetectado) {
+          resultado.consecuenciasAgente.nuevoEstado = EstadoAgente.CAPTURADO;
+        } else {
+          resultado.consecuenciasAgente.tiempoRecuperacion = 15; // Más tiempo por ser detectado
+          resultado.consecuenciasAgente.nuevoEstado = EstadoAgente.RECUPERANDOSE;
+        }
+        resultado.consecuenciasAgente.cambioNotoriedad = (resultado.consecuenciasAgente.cambioNotoriedad || 0) + 20; // Aumenta más la notoriedad
+      } else {
+        // Exito y no detectado
+         resultado.consecuenciasAgente.cambioNotoriedad = (resultado.consecuenciasAgente.cambioNotoriedad || 0) + 5;
+      }
+    } else { // Misión fallida (!exito)
+      resultado.impactoSabotaje = { tipo: "ninguno", magnitud: 0 }; // No hubo impacto de sabotaje
+
+      if (detectado) { // Falló Y fue detectado
+        resultado.consecuenciasAgente.nuevoEstado = EstadoAgente.CAPTURADO;
+        resultado.consecuenciasAgente.cambioNotoriedad = (resultado.consecuenciasAgente.cambioNotoriedad || 0) + 25; // Máximo aumento de notoriedad
+        // Consecuencias para la empresa que lanzó la misión (atacante)
+        resultado.consecuenciasEmpresa = { reputacion: -20, alertaMaxima: true };
+      } else { // Falló y NO fue detectado
+        resultado.consecuenciasAgente.nuevoEstado = EstadoAgente.RECUPERANDOSE;
+        resultado.consecuenciasAgente.tiempoRecuperacion = 5; // Menor tiempo si no fue detectado
+        resultado.consecuenciasAgente.cambioNotoriedad = (resultado.consecuenciasAgente.cambioNotoriedad || 0) + 2;
+      }
+    }
+  }
+  
+  private procesarResultadoManipulacion(
+    resultado: ResultadoMision,
+    mision: MisionEspionaje,
+    exito: boolean,
+    detectado: boolean,
+    empresa: any
+  ): void {
+    if (exito) {
+      // Generar efectos de manipulación
+      resultado.impactoManipulacion = this.generarEfectosManipulacion(mision.objetivoEspecifico);
+      
+      // Aplicar efectos al mercado/empresa
+      this.aplicarEfectos(resultado.impactoManipulacion, empresa);
     }
     
     // Consecuencias para el agente
     if (detectado) {
-      // Alto riesgo de captura en sabotaje
-      const probabilidadCaptura = 60; // 60% de ser cap
-(Content truncated due to size limit. Use line ranges to read in chunks)
+      resultado.consecuenciasAgente.tiempoRecuperacion = 5;
+      resultado.consecuenciasAgente.nuevoEstado = EstadoAgente.RECUPERANDOSE;
+      resultado.consecuenciasAgente.cambioNotoriedad = (resultado.consecuenciasAgente.cambioNotoriedad || 0) + 10;
+    }
+  }
+  
+  private procesarConsecuenciasDeteccion(
+    resultado: ResultadoMision,
+    mision: MisionEspionaje,
+    empresaObjetivo: any
+  ): void {
+    // Consecuencias para el jugador/empresa que lanzó la misión
+    // Solo añadir si no fueron establecidas por una lógica más específica (como en sabotaje fallido y detectado)
+    if (!resultado.consecuenciasEmpresa) {
+        resultado.consecuenciasJugador = resultado.consecuenciasJugador || []; // Ensure array exists
+        resultado.consecuenciasJugador.push({
+          descripcion: `Misión ${mision.tipo} contra ${empresaObjetivo.nombre} fue detectada.`,
+          efectos: [
+            { 
+              tipo: 'cambio_reputacion', 
+              objetivo: 'empresa_ejecutora', // Asumiendo que hay una forma de identificarla
+              valor: -15, // Penalización de reputación
+              descripcion: 'Reputación dañada por misión de espionaje detectada.'
+            }
+          ]
+        });
+    }
+    
+    // Alerta a la empresa objetivo
+    this.sistemaNotificaciones.agregarNotificacion({
+      titulo: "Intento de espionaje detectado!",
+      mensaje: `Hemos detectado y neutralizado una misión de espionaje tipo ${mision.tipo} contra nuestras operaciones.`,
+      tipo: "alerta_seguridad",
+      icono: "spy_detected",
+      empresaIdDestino: mision.objetivoEmpresaId // Notificación para la empresa objetivo
+    });
+  }
+  
+  private generarInformacionObtenida(objetivoEspecifico: string, empresa: any): any {
+    // Simulación de obtención de datos
+    switch (objetivoEspecifico) {
+      case "datos_financieros":
+        return {
+          ingresos_anuales: empresa.metricas?.ingresosAnuales || 0,
+          margen_beneficio: empresa.metricas?.margenBeneficio || 0,
+          deuda_total: empresa.metricas?.deudaTotal || 0
+        };
+      case "planes_expansion":
+        return empresa.planes?.expansion || { proximos_mercados: [], inversion_prevista: 0 };
+      default:
+        return { informacion: "Datos genéricos sobre " + objetivoEspecifico };
+    }
+  }
+  
+  private generarEfectosSabotaje(objetivoEspecifico: string): Efecto[] {
+    // Simulación de efectos de sabotaje
+    switch (objetivoEspecifico) {
+      case "maquinaria_principal":
+        return [{ 
+          tipo: 'reduccion_eficiencia_produccion', 
+          objetivo: 'empresa_objetivo', 
+          valor: -30, // Reducción del 30%
+          duracion: 10, // 10 días
+          descripcion: "Daño crítico a maquinaria principal, eficiencia reducida."
+        }];
+      case "red_distribucion":
+         return [{ 
+          tipo: 'interrupcion_logistica', 
+          objetivo: 'empresa_objetivo', 
+          valor: 5, // 5 días de interrupción
+          descripcion: "Red de distribución sabotada, entregas retrasadas."
+        }];
+      default:
+        return [{ 
+          tipo: 'danos_menores', 
+          objetivo: 'empresa_objetivo', 
+          valor: -50000, // Costo de reparación
+          descripcion: "Sabotaje menor causando daños y costos de reparación."
+        }];
+    }
+  }
+  
+  private generarEfectosManipulacion(objetivoEspecifico: string): Efecto[] {
+    // Simulación de efectos de manipulación de mercado
+     switch (objetivoEspecifico) {
+      case "precio_acciones_competidor":
+        return [{ 
+          tipo: 'variacion_precio_acciones', 
+          objetivo: 'empresa_objetivo', 
+          valor: -15, // Caída del 15%
+          duracion: 5, 
+          descripcion: "Rumores falsos causan caída temporal en el precio de las acciones."
+        }];
+      case "confianza_consumidores_producto_X":
+         return [{ 
+          tipo: 'cambio_percepcion_producto', 
+          objetivo: 'producto_X', 
+          valor: -25, // Reducción del 25% en confianza
+          descripcion: "Campaña de desinformación afecta la confianza en el Producto X."
+        }];
+      default:
+        return [{ 
+          tipo: 'inestabilidad_mercado_general', 
+          objetivo: 'mercado_sectorial', 
+          valor: 0.1, // Aumento de volatilidad
+          descripcion: "Acciones de manipulación generan incertidumbre en el sector."
+        }];
+    }
+  }
+  
+  private aplicarEfectos(efectos: Efecto[] | undefined, empresa: any): void {
+    if (!efectos) return;
+    
+    efectos.forEach(efecto => {
+      // Lógica para aplicar efectos a través de los sistemas externos
+      // Ejemplo: this.sistemaEconomico.aplicarEfecto(efecto, empresa.id);
+      console.log(`Aplicando efecto: ${efecto.descripcion} a ${empresa.nombre || efecto.objetivo}`);
+    });
+  }
+  
+  private notificarResultadoMision(mision: MisionEspionaje): void {
+    const resultado = mision.resultado;
+    if (!resultado) return;
+    
+    let titulo = `Misión ${mision.id} (${mision.tipo}) `;
+    let mensaje = `Objetivo: ${mision.objetivoEspecifico} en ${mision.objetivoEmpresaId}.\n`;
+    
+    if (resultado.exito) {
+      titulo += "EXITOSA";
+      mensaje += "Resultado: Éxito. ";
+    } else {
+      titulo += "FALLIDA";
+      mensaje += "Resultado: Fracaso. ";
+    }
+    
+    if (resultado.detectado) {
+      titulo += " (DETECTADA)";
+      mensaje += "La misión fue detectada por el objetivo.";
+    } else {
+      mensaje += "La misión no fue detectada.";
+    }
+    
+    this.sistemaNotificaciones.agregarNotificacion({
+      titulo,
+      mensaje,
+      tipo: "espionaje_resultado",
+      icono: resultado.exito ? (resultado.detectado ? "spy_mission_success_detected" : "spy_mission_success") : "spy_mission_fail"
+    });
+  }
+}

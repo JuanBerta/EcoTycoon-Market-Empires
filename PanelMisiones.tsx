@@ -18,13 +18,13 @@ export const PanelMisiones: React.FC = () => {
   const dispatch = useDispatch();
   
   // Obtener datos del estado global
-  const misionesPlanificadas = useSelector((state: any) => state.espionaje.misionesPlanificadas);
-  const misionesActivas = useSelector((state: any) => state.espionaje.misionesActivas);
-  const misionesCompletadas = useSelector((state: any) => state.espionaje.misionesCompletadas);
+  const misionesPlanificadas = useSelector((state: any) => state.espionaje.misionesPlanificadas || []);
+  const misionesActivas = useSelector((state: any) => state.espionaje.misionesActivas || []);
+  const misionesCompletadas = useSelector((state: any) => state.espionaje.misionesCompletadas || []);
   const agentesDisponibles = useSelector((state: any) => 
-    state.espionaje.agentes.filter((a: AgenteEspionaje) => a.estado === EstadoAgente.DISPONIBLE)
+    (state.espionaje.agentes || []).filter((a: AgenteEspionaje) => a.estado === EstadoAgente.DISPONIBLE)
   );
-  const empresasObjetivo = useSelector((state: any) => state.npcs.empresasActivas);
+  const empresasObjetivo = useSelector((state: any) => state.npcs.empresasActivas || []);
   
   // Estados locales
   const [tabActiva, setTabActiva] = useState<'planificacion' | 'activas' | 'completadas'>('planificacion');
@@ -141,8 +141,8 @@ const TablaMisionesPlanificadas: React.FC<TablaMisionesPlanificadasProps> = ({
   onVerDetalles
 }) => {
   // Obtener datos adicionales
-  const agentes = useSelector((state: any) => state.espionaje.agentes);
-  const empresas = useSelector((state: any) => state.npcs.empresasActivas);
+  const agentes = useSelector((state: any) => state.espionaje.agentes || []);
+  const empresas = useSelector((state: any) => state.npcs.empresasActivas || []);
   
   // Función para obtener nombre de agente
   const getNombreAgente = (agenteId: string) => {
@@ -228,8 +228,8 @@ const TablaMisionesActivas: React.FC<TablaMisionesActivasProps> = ({
   onVerDetalles
 }) => {
   // Obtener datos adicionales
-  const agentes = useSelector((state: any) => state.espionaje.agentes);
-  const empresas = useSelector((state: any) => state.npcs.empresasActivas);
+  const agentes = useSelector((state: any) => state.espionaje.agentes || []);
+  const empresas = useSelector((state: any) => state.npcs.empresasActivas || []);
   const diaActual = useSelector((state: any) => state.juego.diaActual);
   
   // Función para obtener nombre de agente
@@ -247,7 +247,7 @@ const TablaMisionesActivas: React.FC<TablaMisionesActivasProps> = ({
   // Función para calcular progreso
   const calcularProgreso = (mision: MisionEspionaje) => {
     const diasTranscurridos = diaActual - mision.fechaInicio;
-    const porcentaje = Math.min(100, Math.floor((diasTranscurridos / mision.duracionEstimada) * 100));
+    const porcentaje = Math.min(100, Math.floor((diasTranscurridos / Math.max(1, mision.duracionEstimada)) * 100)); // Avoid division by zero
     return porcentaje;
   };
   
@@ -317,8 +317,8 @@ const TablaMisionesCompletadas: React.FC<TablaMisionesCompletadasProps> = ({
   onVerDetalles
 }) => {
   // Obtener datos adicionales
-  const agentes = useSelector((state: any) => state.espionaje.agentes);
-  const empresas = useSelector((state: any) => state.npcs.empresasActivas);
+  const agentes = useSelector((state: any) => state.espionaje.agentes || []);
+  const empresas = useSelector((state: any) => state.npcs.empresasActivas || []);
   
   // Función para obtener nombre de agente
   const getNombreAgente = (agenteId: string) => {
@@ -395,18 +395,18 @@ const DetallesMision: React.FC<DetallesMisionProps> = ({ misionId, onClose }) =>
   // Obtener datos de la misión
   const mision = useSelector((state: any) => {
     // Buscar en todas las listas de misiones
-    const planificadas = state.espionaje.misionesPlanificadas.find((m: MisionEspionaje) => m.id === misionId);
+    const planificadas = (state.espionaje.misionesPlanificadas || []).find((m: MisionEspionaje) => m.id === misionId);
     if (planificadas) return planificadas;
     
-    const activas = state.espionaje.misionesActivas.find((m: MisionEspionaje) => m.id === misionId);
+    const activas = (state.espionaje.misionesActivas || []).find((m: MisionEspionaje) => m.id === misionId);
     if (activas) return activas;
     
-    return state.espionaje.misionesCompletadas.find((m: MisionEspionaje) => m.id === misionId);
+    return (state.espionaje.misionesCompletadas || []).find((m: MisionEspionaje) => m.id === misionId);
   });
   
   // Datos adicionales
-  const agentes = useSelector((state: any) => state.espionaje.agentes);
-  const empresas = useSelector((state: any) => state.npcs.empresasActivas);
+  const agentes = useSelector((state: any) => state.espionaje.agentes || []);
+  const empresas = useSelector((state: any) => state.npcs.empresasActivas || []);
   const diaActual = useSelector((state: any) => state.juego.diaActual);
   
   if (!mision) {
@@ -422,7 +422,7 @@ const DetallesMision: React.FC<DetallesMisionProps> = ({ misionId, onClose }) =>
     if (mision.estado !== EstadoMision.EN_PROGRESO) return 100;
     
     const diasTranscurridos = diaActual - mision.fechaInicio;
-    return Math.min(100, Math.floor((diasTranscurridos / mision.duracionEstimada) * 100));
+    return Math.min(100, Math.floor((diasTranscurridos / Math.max(1, mision.duracionEstimada)) * 100)); // Avoid division by zero
   };
   
   return (
@@ -448,6 +448,7 @@ const DetallesMision: React.FC<DetallesMisionProps> = ({ misionId, onClose }) =>
                 <p><strong>Objetivo Específico:</strong> {mision.objetivoEspecifico}</p>
                 <p><strong>Agente Asignado:</strong> {agente ? agente.nombre : 'Desconocido'}</p>
                 <p><strong>Costo de Operación:</strong> ${mision.costoOperacion.toLocaleString()}</p>
+                <p><strong>Riesgo Estimado:</strong> {mision.riesgoEstimado !== undefined ? `${mision.riesgoEstimado}%` : 'N/A'}</p>
               </div>
               
               <div className="seccion">
@@ -469,5 +470,187 @@ const DetallesMision: React.FC<DetallesMisionProps> = ({ misionId, onClose }) =>
                     <span>{calcularProgreso()}%</span>
                   </div>
                 )}
-            
-(Content truncated due to size limit. Use line ranges to read in chunks)
+              </div>
+              
+              <div className="seccion">
+                <h5>Probabilidades y Riesgos</h5>
+                <p><strong>Probabilidad de Éxito Base:</strong> {mision.probabilidadExitoBase}%</p>
+                <p><strong>Probabilidad de Detección Base:</strong> {mision.probabilidadDeteccionBase}%</p>
+              </div>
+              
+              {mision.resultado && (
+                <div className="seccion">
+                  <h5>Resultado</h5>
+                  <p><strong>Resultado Final:</strong> {mision.resultado.exito ? 'Éxito' : 'Fracaso'}</p>
+                  <p><strong>Detección:</strong> {mision.resultado.detectado ? 'Detectado' : 'No Detectado'}</p>
+                  {mision.resultado.informacionObtenida && (
+                    <p><strong>Información Obtenida:</strong> {JSON.stringify(mision.resultado.informacionObtenida)}</p>
+                  )}
+                  {mision.resultado.tecnologiaRobadaId && (
+                    <p><strong>Tecnología Robada:</strong> {mision.resultado.tecnologiaRobadaId}</p>
+                  )}
+                  {/* Aquí se podrían mostrar más detalles del resultado, como impacto o consecuencias */}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="modal-footer">
+          <button onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente para el formulario de nueva misión
+interface FormularioNuevaMisionProps {
+  agentesDisponibles: AgenteEspionaje[];
+  empresasObjetivo: any[]; // Simplificado, usar un tipo más específico
+  onClose: () => void;
+}
+
+const FormularioNuevaMision: React.FC<FormularioNuevaMisionProps> = ({ 
+  agentesDisponibles, 
+  empresasObjetivo, 
+  onClose 
+}) => {
+  const dispatch = useDispatch();
+  
+  // Estados del formulario
+  const [tipoMision, setTipoMision] = useState<TipoMisionEspionaje>(TipoMisionEspionaje.RECOPILACION_INFO);
+  const [empresaSeleccionada, setEmpresaSeleccionada] = useState<string>((empresasObjetivo && empresasObjetivo.length > 0) ? empresasObjetivo[0]?.id : '');
+  const [objetivoEspecifico, setObjetivoEspecifico] = useState<string>('');
+  const [agenteSeleccionado, setAgenteSeleccionado] = useState<string>((agentesDisponibles && agentesDisponibles.length > 0) ? agentesDisponibles[0]?.id : '');
+  
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (!empresaSeleccionada || !agenteSeleccionado || !objetivoEspecifico) {
+      alert("Por favor, complete todos los campos requeridos.");
+      return;
+    }
+    
+    dispatch({ 
+      type: 'espionaje/crearMision', 
+      payload: {
+        tipo: tipoMision,
+        objetivoEmpresaId: empresaSeleccionada,
+        objetivoEspecifico: objetivoEspecifico,
+        agenteAsignadoId: agenteSeleccionado,
+      } 
+    });
+    
+    onClose(); 
+  };
+  
+  return (
+    <div className="modal-formulario-mision">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>Planificar Nueva Misión de Espionaje</h3>
+          <button className="btn-cerrar" onClick={onClose}>×</button>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="tipoMision">Tipo de Misión:</label>
+            <select 
+              id="tipoMision" 
+              value={tipoMision} 
+              onChange={(e) => setTipoMision(e.target.value as TipoMisionEspionaje)}
+            >
+              {Object.values(TipoMisionEspionaje).map(tipo => (
+                <option key={tipo} value={tipo}>{traducirTipoMision(tipo)}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="empresaObjetivo">Empresa Objetivo:</label>
+            <select 
+              id="empresaObjetivo" 
+              value={empresaSeleccionada}
+              onChange={(e) => setEmpresaSeleccionada(e.target.value)}
+              disabled={empresasObjetivo.length === 0}
+            >
+              {empresasObjetivo.map(empresa => (
+                <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="objetivoEspecifico">Objetivo Específico:</label>
+            <input 
+              type="text"
+              id="objetivoEspecifico"
+              value={objetivoEspecifico}
+              onChange={(e) => setObjetivoEspecifico(e.target.value)}
+              placeholder="Ej: 'Planes de expansión', 'Fórmula secreta X'"
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="agenteAsignado">Agente Asignado:</label>
+            <select 
+              id="agenteAsignado"
+              value={agenteSeleccionado}
+              onChange={(e) => setAgenteSeleccionado(e.target.value)}
+              disabled={agentesDisponibles.length === 0}
+            >
+              {agentesDisponibles.map(agente => (
+                <option key={agente.id} value={agente.id}>
+                  {agente.nombre} (Hab: {agente.nivelHabilidad}, Esp: {traducirEspecialidad(agente.especialidad)})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="form-actions">
+            <button type="submit" className="btn-principal">Planificar Misión</button>
+            <button type="button" onClick={onClose}>Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Funciones de traducción (simples, podrían estar en un archivo de utilidades/i18n)
+const traducirTipoMision = (tipo: TipoMisionEspionaje): string => {
+  switch (tipo) {
+    case TipoMisionEspionaje.RECOPILACION_INFO: return "Recopilación de Información";
+    case TipoMisionEspionaje.ROBO_TECNOLOGIA: return "Robo de Tecnología";
+    case TipoMisionEspionaje.SABOTAJE: return "Sabotaje";
+    case TipoMisionEspionaje.MANIPULACION_MERCADO: return "Manipulación de Mercado";
+    default: return tipo;
+  }
+};
+
+const traducirEstadoMision = (estado: EstadoMision): string => {
+  switch (estado) {
+    case EstadoMision.PLANIFICANDO: return "Planificando";
+    case EstadoMision.EN_PROGRESO: return "En Progreso";
+    case EstadoMision.COMPLETADA: return "Completada";
+    case EstadoMision.FALLIDA: return "Fallida";
+    case EstadoMision.DESCUBIERTA: return "Descubierta";
+    default: return estado;
+  }
+};
+
+const traducirEspecialidad = (especialidad: EspecialidadAgente): string => {
+    switch (especialidad) {
+        case EspecialidadAgente.INFORMACION: return "Información";
+        case EspecialidadAgente.TECNOLOGIA: return "Tecnología";
+        case EspecialidadAgente.SABOTAJE: return "Sabotaje";
+        case EspecialidadAgente.MANIPULACION: return "Manipulación";
+        case EspecialidadAgente.GENERALISTA: return "Generalista";
+        default: return especialidad;
+    }
+};
+
+export default PanelMisiones;
+// Asegurar que haya una línea nueva al final del archivo.

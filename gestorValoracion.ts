@@ -156,7 +156,7 @@ export class GestorValoracion {
     
     // Calcular valor terminal (perpetuidad con crecimiento)
     const tasaCrecimientoPerpetuo = 0.02; // 2% de crecimiento perpetuo
-    const ultimoFlujo = flujosProyectados[flujosProyectados.length - 1];
+    const ultimoFlujo = flujosProyectados.length > 0 ? flujosProyectados[flujosProyectados.length - 1] : 0;
     const valorTerminal = ultimoFlujo * (1 + tasaCrecimientoPerpetuo) / 
                          (tasaDescuento - tasaCrecimientoPerpetuo);
     
@@ -216,9 +216,9 @@ export class GestorValoracion {
       const multiploSector = this.obtenerMultiploSector(datosComerciales.sector);
       
       // Aplicar múltiplo a ingresos o beneficios
-      if (datosFinancieros.beneficioNeto > 0) {
+      if (datosFinancieros.beneficioNeto && datosFinancieros.beneficioNeto > 0) {
         valorMercado = datosFinancieros.beneficioNeto * multiploSector.pe;
-      } else {
+      } else if (datosFinancieros.ingresoAnual && datosFinancieros.ingresoAnual > 0) {
         valorMercado = datosFinancieros.ingresoAnual * multiploSector.ps;
       }
     }
@@ -340,7 +340,7 @@ export class GestorValoracion {
     }
     
     // Factor por deuda
-    const ratioDeuda = datosFinancieros.pasivosTotal / datosFinancieros.activosTotal;
+    const ratioDeuda = (datosFinancieros.activosTotal > 0) ? datosFinancieros.pasivosTotal / datosFinancieros.activosTotal : 0;
     if (ratioDeuda > 0.7) {
       factores.push({
         nombre: 'Alto endeudamiento',
@@ -411,7 +411,7 @@ export class GestorValoracion {
     let tasaCrecimiento = datosFinancieros.tasaCrecimientoAnual || 0.05;
     
     // Ajustar tasa según tendencias de producción
-    if (datosProduccion.tendenciaEficiencia > 0) {
+    if (datosProduccion.tendenciaEficiencia && datosProduccion.tendenciaEficiencia > 0) { // Check if tendenciaEficiencia exists
       tasaCrecimiento += 0.02;
     }
     
@@ -450,14 +450,14 @@ export class GestorValoracion {
     const valorTotal = valorMercadoEquity + valorMercadoDeuda;
     
     // Proporciones
-    const proporcionEquity = valorMercadoEquity / valorTotal;
-    const proporcionDeuda = valorMercadoDeuda / valorTotal;
+    const proporcionEquity = valorTotal > 0 ? valorMercadoEquity / valorTotal : 0;
+    const proporcionDeuda = valorTotal > 0 ? valorMercadoDeuda / valorTotal : 0;
     
     // Calcular WACC
     const wacc = (proporcionEquity * costoCapitalPropio) + 
                 (proporcionDeuda * costoDeudaDespuesImpuestos);
     
-    return wacc;
+    return wacc > 0 ? wacc : 0.05; // Ensure WACC is positive, default to 5% if calculated as 0 or negative
   }
   
   /**
@@ -466,5 +466,93 @@ export class GestorValoracion {
   private obtenerMultiploSector(sector: string) {
     // Múltiplos por sector (P/E y P/S)
     const multiplosSector: Record<string, {pe: number, ps: number}> = {
-      'tecnolo
-(Content truncated due to size limit. Use line ranges to read in chunks)
+      'tecnologia': { pe: 15, ps: 2 },
+      'manufactura': { pe: 10, ps: 1 },
+      'retail': { pe: 8, ps: 0.8 },
+      'salud': { pe: 18, ps: 2.5 },
+      'energia': { pe: 7, ps: 0.7 },
+      'servicios': { pe: 12, ps: 1.5 } // Nueva entrada
+    };
+    
+    return multiplosSector[sector?.toLowerCase()] || { pe: 10, ps: 1 }; // Default and safe access to sector
+  }
+  
+  /**
+   * Evalúa la calidad de los datos para el método de múltiplo de EBITDA
+   */
+  private evaluarCalidadDatosEBITDA(datosFinancieros: any): number {
+    let calidad = 0;
+    if (datosFinancieros.ebitdaAnual && datosFinancieros.ebitdaAnual > 0) calidad += 0.5;
+    if (datosFinancieros.sector) calidad += 0.3;
+    if (datosFinancieros.tasaCrecimientoAnual !== undefined) calidad += 0.2;
+    return calidad; // Max 1.0
+  }
+  
+  /**
+   * Evalúa la calidad de los datos para el método de flujo de caja descontado
+   */
+  private evaluarCalidadDatosFlujo(datosFinancieros: any, datosProduccion: any): number {
+    let calidad = 0;
+    if (datosFinancieros.flujoCajaOperativo && datosFinancieros.flujoCajaOperativo > 0) calidad += 0.4;
+    if (datosFinancieros.tasaCrecimientoAnual !== undefined) calidad += 0.2;
+    if (datosProduccion.tendenciaEficiencia !== undefined) calidad += 0.1;
+    if (datosFinancieros.beta !== undefined) calidad += 0.1; // Para WACC
+    if (datosFinancieros.tasaInteresPromedio !== undefined) calidad += 0.1; // Para WACC
+    if (datosFinancieros.valorMercadoEquity !== undefined && datosFinancieros.valorMercadoDeuda !== undefined) calidad += 0.1; // Para WACC
+    return calidad; // Max 1.0
+  }
+  
+  /**
+   * Evalúa la calidad de los datos para el método de valoración por activos
+   */
+  private evaluarCalidadDatosActivos(datosActivos: any): number {
+    let calidad = 0;
+    if (datosActivos.valorTotal && datosActivos.valorTotal > 0) calidad += 0.6;
+    if (datosActivos.valorIntangibles !== undefined) calidad += 0.2;
+    if (datosActivos.pasivosTotal !== undefined) calidad += 0.2; // Aunque viene de datosFinancieros, es crucial aquí
+    return calidad; // Max 1.0
+  }
+  
+  /**
+   * Evalúa la calidad de los datos para el método de valoración por mercado
+   */
+  private evaluarCalidadDatosMercado(datosComerciales: any, datosFinancieros: any): number {
+    let calidad = 0;
+    if (datosFinancieros.cotizaEnBolsa && datosFinancieros.precioAccion && datosFinancieros.accionesEmitidas) {
+      calidad = 1.0; // Si cotiza, es el método más directo
+    } else {
+      if (datosComerciales.sector) calidad += 0.5;
+      if (datosFinancieros.beneficioNeto && datosFinancieros.beneficioNeto > 0) calidad += 0.3;
+      if (datosFinancieros.ingresoAnual && datosFinancieros.ingresoAnual > 0) calidad += 0.2;
+    }
+    return calidad; // Max 1.0
+  }
+
+  /**
+   * Determina el tipo de empresa basado en sus datos
+   */
+  private determinarTipoEmpresa(
+    datosFinancieros: any,
+    datosActivos: any,
+    datosProduccion: any,
+    datosComerciales: any
+  ): string {
+    // Lógica simplificada para determinar el tipo de empresa
+    if (datosFinancieros.sector) { // Si el sector está definido, usarlo
+        return datosFinancieros.sector.toLowerCase();
+    }
+    if (datosProduccion.costoProduccionUnitario && datosProduccion.capacidadProduccionMensual) {
+      return 'produccion';
+    }
+    if (datosComerciales.volumenVentasMensual && datosComerciales.precioMedioVenta) {
+      return 'comercial';
+    }
+    if (datosActivos.valorIntangibles > datosActivos.valorTotal * 0.5) {
+      return 'tecnologia'; // O servicios con alto valor intangible
+    }
+    if (datosActivos.tipoActivosPredominante === 'inmuebles') {
+        return 'inmobiliaria';
+    }
+    return 'general'; // Tipo por defecto
+  }
+}

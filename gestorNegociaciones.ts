@@ -469,12 +469,215 @@ export class GestorNegociaciones {
         }
         
         // Actualizar estado de la oferta original
-        oferta.estado = 'rechazada';
+        oferta.estado = 'rechazada'; // La oferta original se considera rechazada por la contraoferta
         this.ofertas.set(ofertaId, oferta);
         
         // Generar ID único para la contraoferta
         const contraofertaId = `oferta_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
         
         // Crear la contraoferta
-        const n
-(Content truncated due to size limit. Use line ranges to read in chunks)
+        const nuevaContraoferta: OfertaMA = {
+          id: contraofertaId,
+          tipoOperacion: negociacion.tipoOperacion,
+          // Los roles se invierten: la empresa objetivo ahora es la ofertante
+          empresaOfertanteId: negociacion.empresaObjetivoId, 
+          empresaObjetivoId: negociacion.empresaIniciadoraId,
+          precioOfertado: contraoferta.precioSolicitado,
+          porcentajeAdquisicion: contraoferta.porcentajeAdquisicion || oferta.porcentajeAdquisicion, // Mantener si no se especifica
+          terminosFinanciacion: contraoferta.terminosFinanciacion,
+          detallesFinanciacion: contraoferta.detallesFinanciacion,
+          condiciones: contraoferta.condiciones || [],
+          sinergiasAdicionales: [], // Inicializar nuevo campo
+          fechaOferta: fechaActual,
+          fechaExpiracion: contraoferta.fechaExpiracion,
+          estado: 'pendiente', // La contraoferta está pendiente de respuesta
+          esContraofertaDe: ofertaId // Referencia a la oferta original
+        };
+        
+        // Almacenar la contraoferta
+        this.ofertas.set(contraofertaId, nuevaContraoferta);
+        
+        // Actualizar la negociación
+        negociacion.ofertas.push(nuevaContraoferta);
+        negociacion.estado = EstadoNegociacion.NEGOCIANDO_CONTRAOFERTA;
+        negociacion.fechaUltimaActividad = fechaActual;
+        
+        // Añadir nota
+        this.agregarNotaNegociacion(
+          negociacionId, 
+          `Contraoferta presentada por ${negociacion.empresaObjetivoId}: ${nuevaContraoferta.precioOfertado.toLocaleString()} créditos`
+        );
+        break;
+        
+      default:
+        throw new Error(`Tipo de respuesta no válido: ${respuesta}`);
+    }
+    
+    // Guardar la negociación actualizada
+    this.negociaciones.set(negociacionId, negociacion);
+    
+    return negociacion;
+  }
+  
+  /**
+   * Finaliza una negociación con un acuerdo formal
+   * @param negociacionId ID de la negociación
+   * @param acuerdo Detalles del acuerdo final
+   * @returns El acuerdo creado
+   */
+  public finalizarConAcuerdo(
+    negociacionId: string,
+    acuerdo: {
+      precioFinal: number;
+      terminosFinanciacion: TerminoFinanciacion;
+      detallesFinanciacion?: any;
+      condicionesFinales: string[];
+      fechaFirma: number;
+      sinergiasEstimadas: {
+        reduccionCostos: number;
+        aumentoIngresos: number;
+        mejoraEficiencia: number;
+        valorTotal: number;
+      };
+      desafiosIntegracion: {
+        descripcion: string;
+        severidad: number; // 1-10
+      }[];
+    }
+  ): AcuerdoMA {
+    // Obtener la negociación
+    const negociacion = this.obtenerNegociacion(negociacionId);
+    if (!negociacion) {
+      throw new Error(`Negociación no encontrada: ${negociacionId}`);
+    }
+    
+    // Verificar que está en estado adecuado
+    if (negociacion.estado !== EstadoNegociacion.ACUERDO_PRELIMINAR) {
+      throw new Error(`Estado incorrecto para finalizar con acuerdo: ${negociacion.estado}`);
+    }
+    
+    // Generar ID único para el acuerdo
+    const acuerdoId = `acuerdo_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    
+    // Crear el acuerdo
+    const nuevoAcuerdo: AcuerdoMA = {
+      id: acuerdoId,
+      negociacionId,
+      tipoOperacion: negociacion.tipoOperacion,
+      empresaCompradoraId: negociacion.empresaIniciadoraId,
+      empresaVendidaId: negociacion.empresaObjetivoId,
+      precioFinal: acuerdo.precioFinal,
+      terminosFinanciacion: acuerdo.terminosFinanciacion,
+      detallesFinanciacion: acuerdo.detallesFinanciacion,
+      condicionesFinales: acuerdo.condicionesFinales,
+      fechaFirma: acuerdo.fechaFirma,
+      sinergiasEstimadas: acuerdo.sinergiasEstimadas,
+      desafiosIntegracion: acuerdo.desafiosIntegracion,
+      estado: EstadoTransaccion.ACUERDO // Transición a estado de acuerdo
+    };
+    
+    // Almacenar el acuerdo
+    this.acuerdos.set(acuerdoId, nuevoAcuerdo);
+    
+    // Actualizar la negociación
+    negociacion.estado = EstadoNegociacion.ACUERDO_CERRADO;
+    negociacion.acuerdoFinal = nuevoAcuerdo; // Vincular el acuerdo
+    negociacion.fechaUltimaActividad = Date.now();
+    
+    // Añadir nota
+    this.agregarNotaNegociacion(
+      negociacionId, 
+      `Acuerdo final alcanzado y firmado. Precio: ${nuevoAcuerdo.precioFinal.toLocaleString()} créditos`
+    );
+    
+    // Guardar la negociación actualizada
+    this.negociaciones.set(negociacionId, negociacion);
+    
+    return nuevoAcuerdo;
+  }
+  
+  /**
+   * Cancela una negociación en curso
+   * @param negociacionId ID de la negociación a cancelar
+   * @param motivo Motivo de la cancelación
+   * @returns La negociación actualizada
+   */
+  public cancelarNegociacion(negociacionId: string, motivo: string): NegociacionMA {
+    // Obtener la negociación
+    const negociacion = this.obtenerNegociacion(negociacionId);
+    if (!negociacion) {
+      throw new Error(`Negociación no encontrada: ${negociacionId}`);
+    }
+    
+    // Actualizar estado
+    negociacion.estado = EstadoNegociacion.CANCELADA;
+    negociacion.fechaUltimaActividad = Date.now();
+    
+    // Añadir nota
+    this.agregarNotaNegociacion(negociacionId, `Negociación cancelada. Motivo: ${motivo}`);
+    
+    // Guardar la negociación actualizada
+    this.negociaciones.set(negociacionId, negociacion);
+    
+    return negociacion;
+  }
+  
+  /**
+   * Agrega una nota al historial de la negociación
+   * @param negociacionId ID de la negociación
+   * @param nota Contenido de la nota
+   */
+  public agregarNotaNegociacion(negociacionId: string, nota: string): void {
+    const negociacion = this.obtenerNegociacion(negociacionId);
+    if (!negociacion) {
+      throw new Error(`Negociación no encontrada: ${negociacionId}`);
+    }
+    
+    negociacion.notasNegociacion.push({
+      fecha: Date.now(),
+      autor: "Sistema", // O podría ser un ID de usuario/empresa
+      contenido: nota
+    });
+    
+    this.negociaciones.set(negociacionId, negociacion);
+  }
+  
+  /**
+   * Obtiene una negociación por su ID
+   * @param negociacionId ID de la negociación
+   * @returns La negociación o undefined si no se encuentra
+   */
+  public obtenerNegociacion(negociacionId: string): NegociacionMA | undefined {
+    return this.negociaciones.get(negociacionId);
+  }
+  
+  /**
+   * Obtiene una oferta por su ID
+   * @param ofertaId ID de la oferta
+   * @returns La oferta o undefined si no se encuentra
+   */
+  public obtenerOferta(ofertaId: string): OfertaMA | undefined {
+    return this.ofertas.get(ofertaId);
+  }
+
+  /**
+   * Obtiene un acuerdo por su ID
+   * @param acuerdoId ID del acuerdo
+   * @returns El acuerdo o undefined si no se encuentra
+   */
+  public obtenerAcuerdo(acuerdoId: string): AcuerdoMA | undefined {
+    return this.acuerdos.get(acuerdoId);
+  }
+
+  /**
+   * Obtiene todas las negociaciones activas (no canceladas, rechazadas o cerradas)
+   * @returns Lista de negociaciones activas
+   */
+  public obtenerNegociacionesActivas(): NegociacionMA[] {
+    return Array.from(this.negociaciones.values()).filter(
+      n => n.estado !== EstadoNegociacion.CANCELADA &&
+           n.estado !== EstadoNegociacion.RECHAZADA &&
+           n.estado !== EstadoNegociacion.ACUERDO_CERRADO
+    );
+  }
+}

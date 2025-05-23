@@ -71,7 +71,7 @@ export const BatchedRender = ({ items, batchSize = 10, renderItem }) => {
 };
 
 // Función para optimizar listas con virtualización
-export const VirtualizedList = ({ items, height, itemHeight, renderItem }) => {
+export const VirtualizedList = ({ items, height, itemHeight, renderItem, bufferSize = 5 }) => {
   const [scrollTop, setScrollTop] = React.useState(0);
   
   const handleScroll = useCallback((e) => {
@@ -79,29 +79,46 @@ export const VirtualizedList = ({ items, height, itemHeight, renderItem }) => {
   }, []);
   
   const visibleItems = useMemo(() => {
-    const startIndex = Math.floor(scrollTop / itemHeight);
+    // Calculate the start index (first visible item)
+    const theoreticalStartIndex = Math.floor(scrollTop / itemHeight);
+    // Apply buffer before the visible area
+    const startIndex = Math.max(0, theoreticalStartIndex - bufferSize);
+    
+    // Calculate the number of items that can fit in the visible area
+    const visibleItemCount = Math.ceil(height / itemHeight);
+    
+    // Calculate the end index (last item to render, including buffer after visible area)
     const endIndex = Math.min(
-      startIndex + Math.ceil(height / itemHeight) + 1,
-      items.length
+      items.length,
+      theoreticalStartIndex + visibleItemCount + bufferSize // Buffer after
     );
     
-    return items.slice(startIndex, endIndex).map((item, index) => ({
+    // Ensure startIndex is not greater than endIndex if items.length is small
+    // And also ensure actualStart is within bounds of items array
+    const actualStartIndex = Math.max(0, Math.min(startIndex, items.length > 0 ? items.length -1 : 0));
+    const actualEndIndex = Math.min(items.length, Math.max(actualStartIndex, endIndex));
+
+
+    return items.slice(actualStartIndex, actualEndIndex).map((item, index) => ({
       ...item,
-      index: startIndex + index,
+      // The 'key' for React elements should be unique, often the item's id.
+      // The 'index' prop here refers to the original index in the 'items' array.
+      index: actualStartIndex + index, 
       style: {
         position: 'absolute',
-        top: (startIndex + index) * itemHeight,
-        height: itemHeight
+        top: (actualStartIndex + index) * itemHeight,
+        height: itemHeight,
+        width: '100%' // Ensure items take full width
       }
     }));
-  }, [items, scrollTop, height, itemHeight]);
+  }, [items, scrollTop, height, itemHeight, bufferSize]);
   
   return (
     <div
-      style={{ height, overflow: 'auto', position: 'relative' }}
+      style={{ height, overflowY: 'auto', position: 'relative' }} // Changed overflow to overflowY
       onScroll={handleScroll}
     >
-      <div style={{ height: items.length * itemHeight }}>
+      <div style={{ height: items.length * itemHeight, position: 'relative' }}> {/* Added position relative here as well */}
         {visibleItems.map(item => renderItem(item))}
       </div>
     </div>

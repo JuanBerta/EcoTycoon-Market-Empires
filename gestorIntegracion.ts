@@ -225,7 +225,8 @@ export class GestorIntegracion {
       satisfaccion_accionistas: 85, // Comienza en 85%
       integracion_sistemas: 0, // Comienza en 0%
       integracion_procesos: 0, // Comienza en 0%
-      realizacion_sinergias: 0 // Comienza en 0%
+      realizacion_sinergias: 0, // Comienza en 0%
+      moral_equipos_integrados: 75 // Nueva métrica, comienza en 75%
     };
   }
   
@@ -257,7 +258,7 @@ export class GestorIntegracion {
     const progresoBase = (diasTranscurridos / proceso.duracionEstimada) * 100;
     
     // Ajustar según inversión (más inversión = progreso más rápido)
-    const factorInversion = proceso.inversionIntegracion / (proceso.inversionIntegracion * 0.05);
+    const factorInversion = proceso.inversionIntegracion / (proceso.inversionIntegracion * 0.05); // This could be simplified, but keeping original logic
     const progresoAjustado = progresoBase * Math.min(1.5, Math.max(0.5, factorInversion));
     
     // Actualizar progreso general
@@ -341,7 +342,7 @@ export class GestorIntegracion {
       
       if (etapasActivas.includes(etapa.nombre)) {
         // Distribuir el progreso entre las etapas activas
-        const progresoEtapa = progresoAjustado * (2 / etapasActivas.length);
+        const progresoEtapa = progresoAjustado * (2 / Math.max(1, etapasActivas.length)); // Avoid division by zero
         etapa.progreso = Math.min(100, etapa.progreso + progresoEtapa);
         
         // Posibilidad de problemas aleatorios
@@ -441,7 +442,7 @@ export class GestorIntegracion {
     // Factores que afectan las métricas
     const factorProblemas = 1 - (this.contarProblemasActivos(proceso) * 0.05);
     const factorProgreso = proceso.progreso / 100;
-    const factorInversion = Math.min(1.2, Math.max(0.8, proceso.inversionIntegracion / (proceso.inversionIntegracion * 0.05)));
+    const factorInversion = Math.min(1.2, Math.max(0.8, proceso.inversionIntegracion / Math.max(1, (proceso.inversionIntegracion * 0.05)))); // Avoid division by zero if inversionIntegracion is 0
     
     // Actualizar cada métrica
     const metricas = proceso.metricasClave;
@@ -468,5 +469,112 @@ export class GestorIntegracion {
     // Integración de sistemas: avanza con el progreso
     metricas.integracion_sistemas = Math.min(100, factorProgreso * 100 * factorProblemas);
     
-    // Integración de pr
-(Content truncated due to size limit. Use line ranges to read in chunks)
+    // Integración de procesos: avanza con el progreso
+    metricas.integracion_procesos = Math.min(100, factorProgreso * 100 * factorProblemas * 0.9); // Un poco más lento
+    
+    // Realización de sinergias: depende del progreso y eficiencia
+    metricas.realizacion_sinergias = Math.min(100, factorProgreso * 100 * factorProblemas * factorInversion * 0.8); // Más difícil de alcanzar
+
+    // Moral de equipos integrados: similar a moral_empleados pero con diferentes factores y umbrales
+    if (proceso.progreso < 40) { // Más sensible en fases tempranas
+      metricas.moral_equipos_integrados = Math.max(40, metricas.moral_equipos_integrados - (0.5 * diasTranscurridos * (1 - factorProblemas) * (1 - factorProgreso)));
+    } else {
+      metricas.moral_equipos_integrados = Math.min(90, metricas.moral_equipos_integrados + (0.3 * diasTranscurridos * factorProblemas * factorProgreso * factorInversion));
+    }
+  }
+  
+  /**
+   * Actualiza las sinergias realizadas del proceso de integración
+   * @param proceso Proceso de integración
+   */
+  private actualizarSinergias(proceso: ProcesoIntegracion): void {
+    const factorRealizacion = proceso.metricasClave.realizacion_sinergias / 100;
+    
+    // Asegurarse que acuerdoFinal existe antes de acceder a sus propiedades
+    if (proceso.acuerdoFinal) { // Check if acuerdoFinal exists
+        proceso.sinergiasRealizadas.reduccionCostos = 
+          proceso.acuerdoFinal.sinergiasEstimadas.reduccionCostos * factorRealizacion;
+        proceso.sinergiasRealizadas.aumentoIngresos = 
+          proceso.acuerdoFinal.sinergiasEstimadas.aumentoIngresos * factorRealizacion;
+        proceso.sinergiasRealizadas.mejoraEficiencia = 
+          proceso.acuerdoFinal.sinergiasEstimadas.mejoraEficiencia * factorRealizacion;
+          
+        proceso.sinergiasRealizadas.valorRealizado = 
+          proceso.sinergiasRealizadas.reduccionCostos +
+          proceso.sinergiasRealizadas.aumentoIngresos +
+          (proceso.sinergiasRealizadas.mejoraEficiencia * 10000); // Valor arbitrario para eficiencia
+    } else {
+        // Handle the case where acuerdoFinal is undefined, perhaps log an error or set defaults
+        proceso.sinergiasRealizadas.reduccionCostos = 0;
+        proceso.sinergiasRealizadas.aumentoIngresos = 0;
+        proceso.sinergiasRealizadas.mejoraEficiencia = 0;
+        proceso.sinergiasRealizadas.valorRealizado = 0;
+    }
+  }
+  
+  /**
+   * Genera un informe de progreso para el proceso
+   * @param proceso Proceso de integración
+   */
+  private generarInformeProgreso(proceso: ProcesoIntegracion): void {
+    const fechaActual = Date.now();
+    const resumen = `Informe de progreso al ${proceso.progreso.toFixed(0)}%`;
+    
+    const logros = [
+      `Progreso general alcanzado: ${proceso.progreso.toFixed(0)}%`,
+      `Costo acumulado: ${proceso.costoAcumulado.toLocaleString()} créditos`,
+      `Moral de empleados: ${proceso.metricasClave.moral_empleados.toFixed(0)}%`,
+      `Realización de sinergias: ${proceso.metricasClave.realizacion_sinergias.toFixed(0)}%`
+    ];
+    
+    const problemas = [];
+    proceso.etapasIntegracion.forEach(etapa => {
+      if (etapa.problemas.length > 0) {
+        problemas.push(`Problemas en etapa ${etapa.nombre}: ${etapa.problemas.join(', ')}`);
+      }
+    });
+    if (proceso.metricasClave.moral_empleados < 60) {
+        problemas.push("Nivel de moral de empleados es bajo.");
+    }
+    if (proceso.metricasClave.retencion_talento < 75) {
+        problemas.push("Riesgo de pérdida de talento clave.");
+    }
+
+    proceso.informesProgreso.push({
+      fecha: fechaActual,
+      resumen,
+      logros,
+      problemas
+    });
+  }
+
+  /**
+   * Cuenta los problemas activos en las etapas de integración
+   * @param proceso Proceso de integración
+   * @returns Número de problemas activos
+   */
+  private contarProblemasActivos(proceso: ProcesoIntegracion): number {
+    return proceso.etapasIntegracion.reduce(
+      (total, etapa) => total + etapa.problemas.length, 0
+    );
+  }
+  
+  /**
+   * Obtiene un proceso de integración por su ID
+   * @param procesoId ID del proceso
+   * @returns El proceso o undefined si no se encuentra
+   */
+  public obtenerProceso(procesoId: string): ProcesoIntegracion | undefined {
+    return this.procesos.get(procesoId);
+  }
+
+  /**
+   * Obtiene todos los procesos de integración activos
+   * @returns Lista de procesos activos
+   */
+  public obtenerProcesosActivos(): ProcesoIntegracion[] {
+    return Array.from(this.procesos.values()).filter(
+      p => p.estado === EstadoIntegracion.EN_PROGRESO || p.estado === EstadoIntegracion.CON_PROBLEMAS
+    );
+  }
+}
