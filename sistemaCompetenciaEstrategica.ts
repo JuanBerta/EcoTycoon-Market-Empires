@@ -329,7 +329,8 @@ export class SistemaCompetenciaEstrategica {
       oportunidadesDetectadas,
       amenazasDetectadas,
       recomendacionesEstrategicas,
-      confianzaAnalisis: 80 // Confianza base
+      confianzaAnalisis: 80, // Confianza base
+      riesgoCalculado: this.calcularRiesgoMercado(empresasPresentes, tendenciasMercado) // Placeholder
     };
     
     return analisis;
@@ -504,7 +505,49 @@ export class SistemaCompetenciaEstrategica {
       "Considerar la adquisición de competidores pequeños con tecnologías complementarias"
     ];
   }
-  
-  /**
 
-(Content truncated due to size limit. Use line ranges to read in chunks)
+  private calcularRiesgoMercado(empresas: any[], tendencias: any[]): number {
+    // Simulación muy simplificada del cálculo de riesgo de mercado
+    let riesgo = 50; // Base
+    if (empresas && empresas.length > 0) {
+      riesgo += empresas.reduce((acc, emp) => acc + (emp.valoracionAmenaza || 0), 0) / empresas.length / 5;
+    }
+    if (tendencias && tendencias.length > 0) {
+      riesgo += tendencias.reduce((acc, ten) => acc + Math.abs(ten.impactoEstimado || 0), 0) / 2;
+    }
+    return Math.min(100, Math.max(0, riesgo));
+  }
+
+  public obtenerAnalisisRecientes(empresaId: string, limite: number): AnalisisCompetitivo[] {
+    // Esta es una implementación simulada. En un sistema real, se accedería
+    // a una base de datos o a una colección interna de análisis.
+    const todosLosAnalisis = this.simularAnalisisExistentes(empresaId);
+    
+    // Ordenar por fecha descendente y tomar el límite
+    return todosLosAnalisis
+      .sort((a, b) => b.fechaAnalisis - a.fechaAnalisis)
+      .slice(0, limite);
+  }
+
+  private simularAnalisisExistentes(empresaId: string): AnalisisCompetitivo[] {
+    // Simulación: Crear algunos análisis de ejemplo
+    // En un caso real, estos vendrían de algún almacenamiento persistente o de la actividad del juego.
+    const analisisEjemplo: AnalisisCompetitivo[] = [];
+    for (let i = 0; i < 5; i++) {
+      analisisEjemplo.push({
+        id: `analisis_${empresaId}_${i}`,
+        mercadoId: `mercado_${i % 2}`,
+        fechaAnalisis: Date.now() - (i * 1000 * 60 * 60 * 24 * 7), // Análisis semanales
+        empresasPresentes: [],
+        tendenciasMercado: [],
+        oportunidadesDetectadas: [],
+        amenazasDetectadas: [],
+        recomendacionesEstrategicas: [`Recomendación simulada ${i}`],
+        confianzaAnalisis: 75 + (i * 5),
+        riesgoCalculado: 10 + i // Asegurándonos que el campo añadido en competitionTypes.ts está aquí
+      });
+    }
+    return analisisEjemplo;
+  }
+  
+}

@@ -5,32 +5,42 @@ import React, { useCallback, useMemo } from 'react';
 export const optimizeComponent = (Component) => {
   return React.memo(Component, (prevProps, nextProps) => {
     // Implementar lógica personalizada de comparación si es necesario
-    return false; // Por defecto, siempre re-renderizar (cambiar en implementaciones específicas)
+    // Por defecto, React.memo hace una comparación superficial de props.
+    // Retornar true si las props son iguales y no se necesita re-renderizar.
+    // Retornar false si las props son diferentes y se necesita re-renderizar.
+    // La lógica actual 'return false;' significa que siempre se re-renderizará si las props cambian,
+    // lo cual es el comportamiento por defecto si no se provee un comparador.
+    // Para una optimización real, se debería implementar una comparación profunda o selectiva.
+    // Ejemplo: return prevProps.id === nextProps.id;
+    return Object.keys(prevProps).length === Object.keys(nextProps).length &&
+           Object.keys(prevProps).every(key => prevProps[key] === nextProps[key]);
   });
 };
 
 // Hook personalizado para memoizar datos complejos
-export const useOptimizedData = (data, dependencies = []) => {
+export const useOptimizedData = (data: any, dependencies: any[] = []) => {
   return useMemo(() => {
     // Procesamiento de datos que puede ser costoso
+    // Ejemplo: const processedData = data.map(item => ({ ...item, computed: heavyComputation(item) }));
+    // return processedData;
     return data;
   }, dependencies);
 };
 
 // Hook personalizado para memoizar callbacks
-export const useOptimizedCallback = (callback, dependencies = []) => {
+export const useOptimizedCallback = (callback: (...args: any[]) => any, dependencies: any[] = []) => {
   return useCallback(callback, dependencies);
 };
 
 // Función para optimizar renderizado condicional
-export const OptimizedRender = ({ condition, children, fallback = null }) => {
+export const OptimizedRender: React.FC<{ condition: boolean; children: React.ReactNode; fallback?: React.ReactNode | null }> = ({ condition, children, fallback = null }) => {
   return useMemo(() => {
     return condition ? children : fallback;
   }, [condition, children, fallback]);
 };
 
 // Componente para renderizado diferido (lazy loading)
-export const DeferredRender = ({ children, delay = 100 }) => {
+export const DeferredRender: React.FC<{ children: React.ReactNode; delay?: number }> = ({ children, delay = 100 }) => {
   const [shouldRender, setShouldRender] = React.useState(false);
   
   React.useEffect(() => {
@@ -41,12 +51,18 @@ export const DeferredRender = ({ children, delay = 100 }) => {
     return () => clearTimeout(timer);
   }, [delay]);
   
-  return shouldRender ? children : null;
+  return shouldRender ? <>{children}</> : null;
 };
 
 // Componente para renderizado por lotes
-export const BatchedRender = ({ items, batchSize = 10, renderItem }) => {
-  const [visibleItems, setVisibleItems] = React.useState([]);
+interface BatchedRenderProps {
+  items: any[];
+  batchSize?: number;
+  renderItem: (item: any, index: number) => React.ReactNode;
+}
+
+export const BatchedRender: React.FC<BatchedRenderProps> = ({ items, batchSize = 10, renderItem }) => {
+  const [visibleItems, setVisibleItems] = React.useState<any[]>([]);
   const [currentBatch, setCurrentBatch] = React.useState(1);
   
   React.useEffect(() => {
@@ -62,64 +78,66 @@ export const BatchedRender = ({ items, batchSize = 10, renderItem }) => {
   
   return (
     <>
-      {visibleItems.map(renderItem)}
+      {visibleItems.map((item, index) => renderItem(item, index))}
       {currentBatch * batchSize < items.length && (
-        <button onClick={loadMore}>Cargar más</button>
+        <button onClick={loadMore} className="load-more-button">Cargar más</button>
       )}
     </>
   );
 };
 
 // Función para optimizar listas con virtualización
-export const VirtualizedList = ({ items, height, itemHeight, renderItem, bufferSize = 5 }) => {
+interface VirtualizedListProps {
+  items: any[];
+  height: number;
+  itemHeight: number;
+  renderItem: (item: any) => React.ReactNode; // item will have style and index
+  bufferSize?: number;
+}
+
+export const VirtualizedList: React.FC<VirtualizedListProps> = ({ items, height, itemHeight, renderItem, bufferSize = 5 }) => {
   const [scrollTop, setScrollTop] = React.useState(0);
   
-  const handleScroll = useCallback((e) => {
-    setScrollTop(e.target.scrollTop);
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => { // Typed event
+    setScrollTop(e.currentTarget.scrollTop);
   }, []);
   
   const visibleItems = useMemo(() => {
-    // Calculate the start index (first visible item)
     const theoreticalStartIndex = Math.floor(scrollTop / itemHeight);
-    // Apply buffer before the visible area
     const startIndex = Math.max(0, theoreticalStartIndex - bufferSize);
     
-    // Calculate the number of items that can fit in the visible area
     const visibleItemCount = Math.ceil(height / itemHeight);
     
-    // Calculate the end index (last item to render, including buffer after visible area)
     const endIndex = Math.min(
       items.length,
-      theoreticalStartIndex + visibleItemCount + bufferSize // Buffer after
+      theoreticalStartIndex + visibleItemCount + bufferSize 
     );
     
-    // Ensure startIndex is not greater than endIndex if items.length is small
-    // And also ensure actualStart is within bounds of items array
     const actualStartIndex = Math.max(0, Math.min(startIndex, items.length > 0 ? items.length -1 : 0));
     const actualEndIndex = Math.min(items.length, Math.max(actualStartIndex, endIndex));
 
-
-    return items.slice(actualStartIndex, actualEndIndex).map((item, index) => ({
-      ...item,
-      // The 'key' for React elements should be unique, often the item's id.
-      // The 'index' prop here refers to the original index in the 'items' array.
-      index: actualStartIndex + index, 
-      style: {
-        position: 'absolute',
-        top: (actualStartIndex + index) * itemHeight,
-        height: itemHeight,
-        width: '100%' // Ensure items take full width
-      }
-    }));
+    return items.slice(actualStartIndex, actualEndIndex).map((itemData, index) => {
+      const originalIndex = actualStartIndex + index;
+      return { // Pass an object to renderItem that includes the item data, style, and original index
+        ...itemData, // Spread original item data
+        originalIndex: originalIndex, // Pass original index
+        style: {
+          position: 'absolute',
+          top: originalIndex * itemHeight,
+          height: itemHeight,
+          width: '100%' 
+        }
+      };
+    });
   }, [items, scrollTop, height, itemHeight, bufferSize]);
   
   return (
     <div
-      style={{ height, overflowY: 'auto', position: 'relative' }} // Changed overflow to overflowY
+      style={{ height, overflowY: 'auto', position: 'relative' }} 
       onScroll={handleScroll}
     >
-      <div style={{ height: items.length * itemHeight, position: 'relative' }}> {/* Added position relative here as well */}
-        {visibleItems.map(item => renderItem(item))}
+      <div style={{ height: items.length * itemHeight, position: 'relative' }}> 
+        {visibleItems.map(itemWithStyle => renderItem(itemWithStyle))}
       </div>
     </div>
   );

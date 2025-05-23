@@ -299,4 +299,37 @@ export interface AnalisisCompetitivo {
   mercadoId: string;                       // ID del mercado analizado
   fechaAnalisis: number;                   // Día de juego del análisis
   riesgoCalculado: number;                 // Riesgo calculado
-(Content truncated due to size limit. Use line ranges to read in chunks)
+  empresasPresentes: {                     // Empresas activas en el mercado
+    empresaId: string;                     // ID de la empresa
+    cuotaMercado: number;                  // Cuota de mercado (%)
+    fortalezas: string[];                  // Fortalezas identificadas
+    debilidades: string[];                 // Debilidades identificadas
+    estrategiasDetectadas: {               // Estrategias activas detectadas
+      tipo: TipoEstrategiaCompetitiva;
+      descripcion: string;
+      intensidadEstimada: IntensidadEstrategia;
+      confianzaDeteccion: number;          // Confianza en la detección (0-100)
+    }[];
+    alianzasConocidas: string[];           // IDs de alianzas conocidas
+    valoracionAmenaza: number;             // Nivel de amenaza percibido (0-100)
+  }[];
+  tendenciasMercado: {                     // Tendencias observadas
+    descripcion: string;                   // Descripción de la tendencia
+    impactoEstimado: number;               // Impacto estimado (1-10, positivo o negativo)
+    duracionEstimada: number;              // Duración estimada en días
+  }[];
+  oportunidadesDetectadas: {               // Oportunidades para la empresa
+    descripcion: string;
+    potencialBeneficio: number;            // Potencial de beneficio (1-10)
+    facilidadAprovechamiento: number;      // Facilidad para aprovechar (1-10)
+    estrategiasRecomendadas: TipoEstrategiaCompetitiva[];
+  }[];
+  amenazasDetectadas: {                    // Amenazas para la empresa
+    descripcion: string;
+    nivelRiesgo: number;                   // Nivel de riesgo (1-10)
+    urgencia: number;                      // Urgencia para actuar (1-10)
+    estrategiasDefensivasRecomendadas: TipoEstrategiaCompetitiva[];
+  }[];
+  recomendacionesEstrategicas: string[];   // Recomendaciones generales
+  confianzaAnalisis: number;               // Nivel de confianza en el análisis (0-100)
+}

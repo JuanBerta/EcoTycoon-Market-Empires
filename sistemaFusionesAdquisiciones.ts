@@ -29,7 +29,8 @@ export class SistemaFusionesAdquisiciones {
   private gestorValoracion: GestorValoracion;
   private gestorNegociaciones: GestorNegociaciones;
   private gestorIntegracion: GestorIntegracion;
-  
+  private negociaciones: Map<string, NegociacionMA> = new Map(); // Added for simulation as per subtask instruction
+
   constructor() {
     this.gestorValoracion = new GestorValoracion();
     this.gestorNegociaciones = new GestorNegociaciones(this.gestorValoracion);
@@ -60,7 +61,20 @@ export class SistemaFusionesAdquisiciones {
     empresaId: string,
     datosAdicionales?: any
   ): ValoracionEmpresa {
-    return this.gestorValoracion.valorarEmpresa(empresaId, undefined, datosAdicionales);
+    // Assuming datosFinancieros, datosActivos, etc. are fetched or passed differently if undefined
+    // For now, passing undefined as per original call signature if not provided.
+    const mockDatosFinancieros = datosAdicionales?.financieros || { /* default empty or minimal structure */ };
+    const mockDatosActivos = datosAdicionales?.activos || { /* default */ };
+    const mockDatosProduccion = datosAdicionales?.produccion || { /* default */ };
+    const mockDatosComerciales = datosAdicionales?.comerciales || { /* default */ };
+
+    return this.gestorValoracion.valorarEmpresa(
+        empresaId, 
+        mockDatosFinancieros, 
+        mockDatosActivos, 
+        mockDatosProduccion, 
+        mockDatosComerciales
+    );
   }
   
   /**
@@ -77,12 +91,14 @@ export class SistemaFusionesAdquisiciones {
     tipoOperacion: TipoOperacionMA,
     esHostil: boolean = false
   ): NegociacionMA {
-    return this.gestorNegociaciones.iniciarNegociacion(
+    const negociacion = this.gestorNegociaciones.iniciarNegociacion(
       empresaIniciadoraId,
       empresaObjetivoId,
       tipoOperacion,
       esHostil
     );
+    this.negociaciones.set(negociacion.id, negociacion); // Store for simulation access
+    return negociacion;
   }
   
   /**
@@ -235,7 +251,7 @@ export class SistemaFusionesAdquisiciones {
       throw new Error(`Negociación no encontrada: ${negociacionId}`);
     }
     
-    const acuerdo = this.gestorNegociaciones.obtenerAcuerdo(negociacionId);
+    const acuerdo = negociacion.acuerdoFinal || this.gestorNegociaciones.obtenerAcuerdo(negociacionId);
     if (!acuerdo) {
       throw new Error(`Acuerdo no encontrado para negociación: ${negociacionId}`);
     }
@@ -312,7 +328,8 @@ export class SistemaFusionesAdquisiciones {
    * @returns La negociación o undefined si no existe
    */
   public obtenerNegociacion(negociacionId: string): NegociacionMA | undefined {
-    return this.gestorNegociaciones.obtenerNegociacion(negociacionId);
+    // First try the gestor, then the local map for simulation purposes
+    return this.gestorNegociaciones.obtenerNegociacion(negociacionId) || this.negociaciones.get(negociacionId);
   }
   
   /**
@@ -488,7 +505,83 @@ export class SistemaFusionesAdquisiciones {
       efectosReputacion
     };
   }
-}
 
-// Exportar la clase para us
-(Content truncated due to size limit. Use line ranges to read in chunks)
+  // Nuevos métodos solicitados
+  public obtenerAcuerdosRecientes(empresaId: string, limite: number): AcuerdoMA[] {
+    // Esta es una implementación simulada. En un sistema real, se accedería
+    // a una base de datos o a una colección interna de acuerdos.
+    const todosLosAcuerdos = this.simularAcuerdosExistentes(empresaId);
+    
+    // Ordenar por fecha descendente (asumiendo que los acuerdos tienen una fecha)
+    // y tomar el límite. Si AcuerdoMA no tiene fecha, este ordenamiento necesitará ajuste.
+    // Para la simulación, asumiré que podemos acceder a una fecha a través de la negociación.
+    return todosLosAcuerdos
+      .sort((a, b) => {
+        const negA = this.obtenerNegociacion(a.negociacionId); // Uses the class's obtenerNegociacion
+        const negB = this.obtenerNegociacion(b.negociacionId); // Uses the class's obtenerNegociacion
+        return (negB?.fechaUltimaActividad || 0) - (negA?.fechaUltimaActividad || 0);
+      })
+      .slice(0, limite);
+  }
+
+  private simularAcuerdosExistentes(empresaId: string): AcuerdoMA[] {
+    // Simulación: Crear algunos acuerdos de ejemplo
+    const acuerdosEjemplo: AcuerdoMA[] = [];
+    const tiposOperacion = [TipoOperacionMA.ADQUISICION_COMPLETA, TipoOperacionMA.FUSION];
+    const metodosPago = [TerminoFinanciacion.EFECTIVO, TerminoFinanciacion.ACCIONES, TerminoFinanciacion.MIXTO];
+
+    for (let i = 0; i < 5; i++) {
+      const negociacionIdSimulada = `neg_${empresaId}_acuerdo_${i}`;
+      // Simular una negociación para obtener fecha
+      if (!this.negociaciones.has(negociacionIdSimulada)) {
+        const tipoOp = tiposOperacion[i % tiposOperacion.length];
+        this.negociaciones.set(negociacionIdSimulada, {
+          id: negociacionIdSimulada,
+          tipoOperacion: tipoOp,
+          empresaIniciadoraId: empresaId,
+          empresaObjetivoId: `empresa_obj_${i}`,
+          estado: EstadoNegociacion.ACUERDO_CERRADO, // Changed from ACUERDO_FINALIZADO
+          ofertas: [],
+          fechaInicio: Date.now() - (i * 1000 * 60 * 60 * 24 * 30), // Acuerdos mensuales
+          fechaUltimaActividad: Date.now() - (i * 1000 * 60 * 60 * 24 * 30),
+          notasNegociacion: [],
+          // Add other required fields for NegociacionMA if any, e.g. acuerdoFinal, esHostil
+          esHostil: false, // Default value
+          acuerdoFinal: undefined, // Will be populated by the AcuerdoMA itself if needed by other logic
+          valoracion: undefined, // Default or mock if needed
+        } as NegociacionMA);
+      }
+      
+      const negociacionSimulada = this.negociaciones.get(negociacionIdSimulada)!;
+
+      acuerdosEjemplo.push({
+        id: `acuerdo_${empresaId}_${i}`,
+        negociacionId: negociacionIdSimulada,
+        tipoOperacion: negociacionSimulada.tipoOperacion,
+        empresaCompradoraId: empresaId,
+        empresaVendidaId: `empresa_obj_${i}`,
+        precioFinal: 1000000 * (i + 1),
+        // porcentajeAdquirido: tipoOperacionMA.ADQUISICION ? 100 : undefined, // Corrected this line
+        porcentajeAdquirido: negociacionSimulada.tipoOperacion === TipoOperacionMA.ADQUISICION_COMPLETA ? 100 : undefined,
+        terminosFinanciacion: metodosPago[i % metodosPago.length], // Corrected from terminosFinales.metodoPago
+        detallesFinanciacion: { info: `Detalles de pago simulados ${i}` }, // Corrected from terminosFinales.detallesPago
+        condicionesFinales: [`Condición especial simulada ${i}`], // Corrected from terminosFinales.condicionesEspeciales
+        // clausulasAdicionales: [`Cláusula adicional simulada ${i}`], // This was part of terminosFinales, moved to condicionesFinales for simplicity
+        fechaFirma: Date.now() - (i * 1000 * 60 * 60 * 24 * 30), // Corrected from fechaAcuerdo
+        sinergiasEstimadas: {
+          reduccionCostos: 10000 * (i + 1),
+          aumentoIngresos: 20000 * (i + 1),
+          mejoraEficiencia: 5 + i,
+          valorTotal: 30000 * (i + 1) + (5+i)*1000,
+        },
+        desafiosIntegracion: [{
+          tipo: "Cultural", // Was 'tipo' in subtask, but AcuerdoMA has 'descripcion'
+          severidad: 3 + i,
+          descripcion: `Desafío cultural simulado ${i}`
+        }],
+        estado: EstadoTransaccion.ACUERDO // Added estado
+      });
+    }
+    return acuerdosEjemplo;
+  }
+}
